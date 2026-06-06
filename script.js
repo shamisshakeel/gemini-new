@@ -1,3 +1,97 @@
+// State Management
+let isAdminLoggedIn = localStorage.getItem('isAdminLoggedIn') === 'true';
+let adminPassword = localStorage.getItem('adminPassword') || 'smoekys';
+let currentModalMode = 'login'; // 'login' or 'change'
+
+// Initialize UI on load
+document.addEventListener('DOMContentLoaded', updateAdminUI);
+
+function updateAdminUI() {
+  const statusEl = document.getElementById('adminStatus');
+  const actionBtn = document.getElementById('adminActionBtn');
+  const changeBtn = document.getElementById('changePassBtn');
+
+  if (isAdminLoggedIn) {
+    statusEl.textContent = 'Admin Mode (Active)';
+    statusEl.className = 'admin-status logged-in';
+    actionBtn.textContent = 'Log Out';
+    actionBtn.className = 'admin-btn admin-btn-logout';
+    changeBtn.style.display = 'inline-block';
+  } else {
+    statusEl.textContent = 'Staff Mode';
+    statusEl.className = 'admin-status';
+    actionBtn.textContent = 'Log In';
+    actionBtn.className = 'admin-btn';
+    changeBtn.style.display = 'none';
+  }
+}
+
+function handleAdminAction() {
+  if (isAdminLoggedIn) {
+    // Log Out Routine
+    isAdminLoggedIn = false;
+    localStorage.setItem('isAdminLoggedIn', 'false');
+    updateAdminUI();
+  } else {
+    // Open Log In Modal
+    currentModalMode = 'login';
+    document.getElementById('adminModalTitle').textContent = 'Admin Authentication';
+    document.getElementById('adminModalDesc').textContent = 'Enter your password to access global bypass mode.';
+    document.getElementById('adminPasswordInput').value = '';
+    document.getElementById('adminModal').style.display = 'flex';
+  }
+}
+
+function openPasswordModal() {
+  currentModalMode = 'change';
+  document.getElementById('adminModalTitle').textContent = 'Change Admin Password';
+  document.getElementById('adminModalDesc').textContent = 'Set a new secure password for this device.';
+  document.getElementById('adminPasswordInput').value = '';
+  document.getElementById('adminModal').style.display = 'flex';
+}
+
+function closeAdminModal() {
+  document.getElementById('adminModal').style.display = 'none';
+}
+
+function submitAdminPassword() {
+  const inputVal = document.getElementById('adminPasswordInput').value;
+
+  if (currentModalMode === 'login') {
+    if (inputVal === adminPassword) {
+      isAdminLoggedIn = true;
+      localStorage.setItem('isAdminLoggedIn', 'true');
+      closeAdminModal();
+      updateAdminUI();
+    } else {
+      alert('Incorrect password!');
+    }
+  } else if (currentModalMode === 'change') {
+    if (inputVal.trim().length < 4) {
+      alert('Password must be at least 4 characters long.');
+      return;
+    }
+    adminPassword = inputVal;
+    localStorage.setItem('adminPassword', adminPassword);
+    alert('Password updated successfully!');
+    closeAdminModal();
+  }
+}
+
+/**
+ * Global Helper Function
+ * Wrap any restricted actions inside your app with this check.
+ * Example usage: if (checkActionPermission()) { proceedWithAction(); }
+ */
+function checkActionPermission() {
+  if (isAdminLoggedIn) {
+    return true; // Bypass password screen completely
+  }
+  
+  // Default behavior for normal staff mode
+  const staffPin = prompt("Enter Staff PIN to authorize action:");
+  return staffPin === "1234"; // Replace with your standard dynamic logic
+}
 // Base Menu Items Architecture Matrix
 let defaultStructuredItems = [
     { name: "Chicken Biryani", category: "Rice", weight: 0 },
