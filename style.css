@@ -1,50 +1,3 @@
-/* --- Admin Feature Styles --- */
-.admin-widget {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.admin-status {
-  font-size: 13px;
-  font-weight: 700;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  background: #f1f5f9;
-  color: var(--text-muted);
-}
-
-.admin-status.logged-in {
-  background: #e6f4ea;
-  color: #137333;
-  border: 1px solid #a3cfbb;
-}
-
-.admin-btn {
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 700;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: white;
-  transition: all 0.15s ease;
-}
-
-.admin-btn:hover {
-  background: #f1f5f9;
-}
-
-.admin-btn-logout {
-  background: var(--danger-bg);
-  color: var(--danger);
-  border-color: #fca5a5;
-}
-
-.admin-btn-logout:hover {
-  background: var(--danger);
-  color: white;
-}
 :root {
     --bg-main: #f8fafc;
     --panel-bg: #ffffff;
@@ -77,7 +30,7 @@ body {
     color: var(--text-main);
 }
 
-/* Top Navbar Header */
+/* Top Navbar Header Component Layout */
 .top-navbar {
     display: flex;
     justify-content: space-between;
@@ -155,7 +108,11 @@ body {
 }
 
 /* Standard UI Buttons System */
-.nav-buttons { display: flex; gap: 12px; }
+.nav-buttons { 
+    display: flex; 
+    align-items: center;
+    gap: 12px; 
+}
 
 .btn {
     padding: 10px 20px;
@@ -385,7 +342,7 @@ body {
     background: #f8fafc; 
     border: 1px solid var(--border); 
     border-radius: var(--radius-md); 
-    padding: 20px; 
+    padding: 20px;
     position: relative; 
 }
 .history-header { display: flex; flex-direction: column; font-weight: 600; border-bottom: 1px dashed var(--border); padding-bottom: 12px; margin-bottom: 12px; padding-right: 24px; font-size: 13px; gap: 4px; }
@@ -445,7 +402,10 @@ body {
 /* Security Overlay Verification Modals styling */
 .modal-overlay {
     position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
+    top: 0;
+    left: 0; 
+    width: 100%; 
+    height: 100%;
     background: rgba(15, 23, 24, 0.4);
     backdrop-filter: blur(8px);
     display: none;
@@ -522,16 +482,61 @@ body {
 .btn-reset-gray { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
 .btn-reset-gray:hover { background: #e2e8f0; }
 
+/* --- Brand New Custom Admin Widget Enhancements --- */
+.admin-widget {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-status {
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    background: #f1f5f9;
+    color: var(--text-muted);
+}
+
+.admin-status.logged-in {
+    background: #e6f4ea;
+    color: #137333;
+    border: 1px solid #a3cfbb;
+}
+
+.admin-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: white;
+    transition: all 0.15s ease;
+}
+
+.admin-btn:hover { background: #f1f5f9; }
+
+.admin-btn-logout {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-color: #fca5a5;
+}
+.admin-btn-logout:hover {
+    background: var(--danger);
+    color: white;
+}
+
 /* -------------------------------------------------------------
    THERMAL PRINTING ENGINE OVERRIDES (Fixed Layout Right Cutoffs)
    ------------------------------------------------------------- */
 @media print {
     @page { 
-        size: 80mm auto; 
-        margin: 0mm 0mm 0mm 0mm !important; /* Zeroed to control inside wrapper */
+        size: 80mm auto;
+        margin: 0mm 0mm 0mm 0mm !important;
     }
     html, body { 
-        background: #ffffff !important; 
+        background: #ffffff !important;
         margin: 0mm !important; 
         padding: 0mm !important; 
         width: 74mm !important;
@@ -541,31 +546,31 @@ body {
     .top-navbar, .tabs-nav, .dashboard, .archive-dashboard, .modal-overlay { display: none !important; }
     
     #print-area { 
-        display: block !important; 
+        display: block !important;
         width: 70mm !important; 
-        margin: 0px 0px 0px 2mm !important; /* Shifter slightly left into printable safety bounds */
+        margin: 0px 0px 0px 2mm !important; 
         padding: 2mm 0mm !important;
     }
     
     .pos-token, .pos-report { 
-        display: block !important; 
+        display: block !important;
         width: 100% !important; 
         box-sizing: border-box !important; 
         background: #ffffff !important; 
         font-family: 'Courier New', Courier, monospace, sans-serif !important; 
         page-break-inside: avoid !important;
         color: #000000 !important;
-        padding-right: 4mm !important; /* Safety padding space to prevent clipping variables */
+        padding-right: 4mm !important; 
     }
     
     .pos-token { 
-        text-align: center; 
+        text-align: center;
         margin-bottom: 4mm !important; 
         border-bottom: 2px dashed #000000 !important; 
     }
     
     .brand-main { 
-        font-size: 16px; 
+        font-size: 16px;
         font-weight: 900; 
         color: #000000 !important; 
         text-align: center; 
@@ -579,7 +584,7 @@ body {
     .item-container { padding: 4px 0; text-align: center; color: #000000 !important; }
     
     .pos-item { 
-        font-size: 26px; 
+        font-size: 26px;
         font-weight: 900; 
         color: #000000 !important; 
         margin: 0 0 4px 0; 
@@ -589,7 +594,7 @@ body {
     }
     
     .pos-qty { 
-        font-size: 18px; 
+        font-size: 18px;
         font-weight: 900; 
         color: #000000 !important; 
         display: inline-block; 
@@ -599,7 +604,7 @@ body {
     }
     
     .meta-line { 
-        display: block; 
+        display: block;
         text-align: center; 
         font-size: 13px; 
         font-weight: 900; 
@@ -607,7 +612,7 @@ body {
     }
     
     .report-title { 
-        font-size: 14px; 
+        font-size: 14px;
         font-weight: 900; 
         text-align: center; 
         margin: 4px 0; 
@@ -615,7 +620,7 @@ body {
     }
     
     .report-category-header { 
-        font-size: 12px; 
+        font-size: 12px;
         font-weight: 900; 
         text-align: left; 
         text-transform: uppercase; 
@@ -625,19 +630,19 @@ body {
     }
     
     .report-row { 
-        display: flex !important; 
+        display: flex !important;
         justify-content: space-between !important; 
         align-items: center !important; 
         width: 100% !important; 
         box-sizing: border-box !important; 
         font-size: 14px !important; 
-        font-weight: 900 !important; 
+        font-weight: 900 !important;
         margin: 4px 0 !important; 
-        padding-right: 6mm !important; /* Shifted values cleanly inside the paper wrap bounds */
+        padding-right: 6mm !important; 
     }
     
     .highlight-box { 
-        border: 2px solid #000000 !important; 
+        border: 2px solid #000000 !important;
         padding: 6px; 
         margin: 8px 0; 
         text-align: center;
