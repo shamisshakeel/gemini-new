@@ -1,3 +1,50 @@
+/* --- Admin Feature Styles --- */
+.admin-widget {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-status {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: #f1f5f9;
+  color: var(--text-muted);
+}
+
+.admin-status.logged-in {
+  background: #e6f4ea;
+  color: #137333;
+  border: 1px solid #a3cfbb;
+}
+
+.admin-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: white;
+  transition: all 0.15s ease;
+}
+
+.admin-btn:hover {
+  background: #f1f5f9;
+}
+
+.admin-btn-logout {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: #fca5a5;
+}
+
+.admin-btn-logout:hover {
+  background: var(--danger);
+  color: white;
+}
 :root {
     --bg-main: #f8fafc;
     --panel-bg: #ffffff;
