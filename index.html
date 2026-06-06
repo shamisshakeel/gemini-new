@@ -40,11 +40,29 @@
 </div>
 
 <div class="top-navbar">
-    <h2>Ahmed Hanif Rajput Pakwan</h2>
-    <div class="nav-buttons">
-        <button class="btn btn-primary" onclick="attemptStartNewDay()">Open New Day</button>
-        <button class="btn btn-danger" onclick="endDay()">End Shift & Total</button>
+  <h2>Dashboard</h2>
+  
+  <!-- Admin Control Widget -->
+  <div class="admin-widget" id="adminWidget">
+    <span class="admin-status" id="adminStatus">Staff Mode</span>
+    <button class="admin-btn" id="adminActionBtn" onclick="handleAdminAction()">Log In</button>
+    <button class="admin-btn" id="changePassBtn" onclick="openPasswordModal()" style="display: none;">Change Pass</button>
+  </div>
+</div>
+
+<!-- Password Prompt / Change Modal -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal-box">
+    <div class="modal-title-bold" id="adminModalTitle">Admin Authentication</div>
+    <div class="margin-bottom-20 font-size-13" id="adminModalDesc">Enter your password to access global bypass mode.</div>
+    
+    <input type="password" id="adminPasswordInput" class="input-field text-center margin-bottom-20" placeholder="••••••••">
+    
+    <div class="modal-btn-group">
+      <button class="btn btn-neutral btn-half" onclick="closeAdminModal()">Cancel</button>
+      <button class="btn btn-primary btn-half" id="adminModalSubmitBtn" onclick="submitAdminPassword()">Verify</button>
     </div>
+  </div>
 </div>
 
 <div class="tabs-nav">
