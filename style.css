@@ -69,6 +69,21 @@ body {
     overflow-x: auto;
 }
 
+/* Update your panel/modal classes */
+.panel, .modal-box, .filter-panel {
+    background-color: var(--panel-bg) !important;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--primary); /* Glowing red top edge */
+    box-shadow: var(--shadow-md);
+    color: var(--text-main);
+}
+
+.modal-title, label {
+    color: var(--primary) !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
 .tab-btn {
     flex: 1;
     padding: 12px 20px;
