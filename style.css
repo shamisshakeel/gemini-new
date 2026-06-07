@@ -20,6 +20,32 @@
     --shadow-sm: 0 0 8px rgba(230, 0, 0, 0.2);
     --shadow-md: 0 0 15px rgba(230, 0, 0, 0.4);
 }
+/* Inputs */
+.input-field, .select-field, .pin-input {
+    background-color: #0a0a0a !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-main) !important;
+}
+
+.input-field:focus, .select-field:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 10px rgba(230, 0, 0, 0.5) !important;
+    outline: none;
+}
+
+/* Excel/Audit Tables */
+.excel-table th {
+    background-color: #1a0505 !important; /* Dark red tint */
+    color: var(--primary) !important;
+    border: 1px solid var(--border) !important;
+    text-transform: uppercase;
+}
+
+.excel-table td {
+    background-color: #0a0a0a !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-main) !important;
+}
 
 * {
     box-sizing: border-box;
