@@ -17,7 +17,6 @@
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
-/* Global Layout & Core Typography Reset */
 * {
     box-sizing: border-box;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
@@ -30,7 +29,6 @@ body {
     color: var(--text-main);
 }
 
-/* Top Navbar Header Component Layout */
 .top-navbar {
     display: flex;
     justify-content: space-between;
@@ -51,7 +49,6 @@ body {
     letter-spacing: -0.5px;
 }
 
-/* Tab Navigation System */
 .tabs-nav {
     display: flex;
     gap: 6px;
@@ -82,11 +79,9 @@ body {
     box-shadow: var(--shadow-sm);
 }
 
-/* Content Panel Segment Switches */
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-/* Workspace Matrix Layout Grids */
 .dashboard, .archive-dashboard {
     display: grid;
     grid-template-columns: 1fr;
@@ -107,12 +102,7 @@ body {
     border: 1px solid var(--border);
 }
 
-/* Standard UI Buttons System */
-.nav-buttons { 
-    display: flex; 
-    align-items: center;
-    gap: 12px; 
-}
+.nav-buttons { display: flex; gap: 12px; }
 
 .btn {
     padding: 10px 20px;
@@ -145,7 +135,6 @@ body {
 .btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid #fca5a5; }
 .btn-danger:hover { background: var(--danger); color: white; }
 
-/* Input Field Elements */
 .add-item-box {
     background: #f8fafc;
     border: 1px dashed var(--border);
@@ -167,7 +156,6 @@ body {
 }
 .input-field:focus, .select-field:focus { border-color: var(--primary); }
 
-/* Quick POS Category Horizontal Scrollers */
 .category-nav {
     display: flex;
     gap: 8px;
@@ -195,7 +183,6 @@ body {
     border-color: var(--primary); 
 }
 
-/* Fast-Action Dynamic Menu Cards Grid */
 .menu-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -231,7 +218,6 @@ body {
     margin: 24px 0 12px 0;
 }
 
-/* POS Cart Queue Component Box */
 .cart-box {
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
@@ -269,7 +255,6 @@ body {
 }
 .qty-btn:hover { background: #f1f5f9; }
 
-/* Dashboard Tables styling */
 .styled-table {
     width: 100%;
     border-collapse: collapse;
@@ -282,7 +267,6 @@ body {
 .styled-table th { background-color: #f8fafc; color: var(--text-main); text-align: left; padding: 14px; font-weight: 700; border-bottom: 2px solid var(--border); }
 .styled-table td { padding: 14px; border-bottom: 1px solid var(--border); font-size: 14px; }
 
-/* Excel-Style Analytics Table Sheets Grid */
 .excel-table-container {
     overflow-x: auto;
     border: 1px solid #cbd5e1;
@@ -300,7 +284,6 @@ body {
 .excel-table tr:nth-child(even) { background-color: #f8fafc; }
 .excel-table tr:hover { background-color: #f1f5f9; }
 
-/* Matrix Filtering Panel & Control Blocks */
 .filter-panel, .rules-panel {
     background: #f8fafc;
     border: 1px solid var(--border);
@@ -315,7 +298,6 @@ body {
 .filter-group, .rule-group { display: flex; flex-direction: column; gap: 6px; }
 .filter-group label, .rule-group label { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
 
-/* Action Interface Small Inline Buttons */
 .btn-action-small {
     padding: 6px 14px;
     border-radius: var(--radius-sm);
@@ -330,7 +312,6 @@ body {
 .btn-edit { background: #e0e7ff; color: var(--primary); border-color: #c7d2fe; margin-right: 4px; }
 .btn-edit:hover { background: var(--primary); color: white; }
 
-/* Historic Ledger Cards Flow Architecture */
 .history-grid-layout {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
@@ -342,7 +323,7 @@ body {
     background: #f8fafc; 
     border: 1px solid var(--border); 
     border-radius: var(--radius-md); 
-    padding: 20px;
+    padding: 20px; 
     position: relative; 
 }
 .history-header { display: flex; flex-direction: column; font-weight: 600; border-bottom: 1px dashed var(--border); padding-bottom: 12px; margin-bottom: 12px; padding-right: 24px; font-size: 13px; gap: 4px; }
@@ -399,13 +380,9 @@ body {
 
 #print-area { display: none; }
 
-/* Security Overlay Verification Modals styling */
 .modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0; 
-    width: 100%; 
-    height: 100%;
+    top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(15, 23, 24, 0.4);
     backdrop-filter: blur(8px);
     display: none;
@@ -432,7 +409,6 @@ body {
 }
 .flag-high { background-color: var(--danger-bg); color: var(--danger); border: 1px solid #fca5a5; }
 
-/* Micro-utility Classes for Semantic Layout cleanup */
 .margin-top-0 { margin-top: 0; }
 .margin-top-16 { margin-top: 16px; }
 .margin-bottom-12 { margin-bottom: 12px; }
@@ -440,9 +416,11 @@ body {
 .margin-0 { margin: 0; }
 .w-20 { width: 20%; }
 .w-25 { width: 25%; }
+.w-100 { width: 100px; }
 .w-120 { width: 120px; }
 .w-140 { width: 140px; }
 .w-150 { width: 150px; }
+.w-200 { width: 200px; }
 .w-260 { width: 260px; }
 .w-280 { width: 280px; }
 .text-center { text-align: center; }
@@ -482,61 +460,13 @@ body {
 .btn-reset-gray { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
 .btn-reset-gray:hover { background: #e2e8f0; }
 
-/* --- Brand New Custom Admin Widget Enhancements --- */
-.admin-widget {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.admin-status {
-    font-size: 13px;
-    font-weight: 700;
-    padding: 6px 12px;
-    border-radius: var(--radius-sm);
-    background: #f1f5f9;
-    color: var(--text-muted);
-}
-
-.admin-status.logged-in {
-    background: #e6f4ea;
-    color: #137333;
-    border: 1px solid #a3cfbb;
-}
-
-.admin-btn {
-    padding: 6px 12px;
-    font-size: 12px;
-    font-weight: 700;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    border: 1px solid var(--border);
-    background: white;
-    transition: all 0.15s ease;
-}
-
-.admin-btn:hover { background: #f1f5f9; }
-
-.admin-btn-logout {
-    background: var(--danger-bg);
-    color: var(--danger);
-    border-color: #fca5a5;
-}
-.admin-btn-logout:hover {
-    background: var(--danger);
-    color: white;
-}
-
-/* -------------------------------------------------------------
-   THERMAL PRINTING ENGINE OVERRIDES (Fixed Layout Right Cutoffs)
-   ------------------------------------------------------------- */
 @media print {
     @page { 
-        size: 80mm auto;
-        margin: 0mm 0mm 0mm 0mm !important;
+        size: 80mm auto; 
+        margin: 0mm 0mm 0mm 0mm !important; 
     }
     html, body { 
-        background: #ffffff !important;
+        background: #ffffff !important; 
         margin: 0mm !important; 
         padding: 0mm !important; 
         width: 74mm !important;
@@ -546,14 +476,14 @@ body {
     .top-navbar, .tabs-nav, .dashboard, .archive-dashboard, .modal-overlay { display: none !important; }
     
     #print-area { 
-        display: block !important;
+        display: block !important; 
         width: 70mm !important; 
         margin: 0px 0px 0px 2mm !important; 
         padding: 2mm 0mm !important;
     }
     
     .pos-token, .pos-report { 
-        display: block !important;
+        display: block !important; 
         width: 100% !important; 
         box-sizing: border-box !important; 
         background: #ffffff !important; 
@@ -564,13 +494,13 @@ body {
     }
     
     .pos-token { 
-        text-align: center;
+        text-align: center; 
         margin-bottom: 4mm !important; 
         border-bottom: 2px dashed #000000 !important; 
     }
     
     .brand-main { 
-        font-size: 16px;
+        font-size: 16px; 
         font-weight: 900; 
         color: #000000 !important; 
         text-align: center; 
@@ -584,7 +514,7 @@ body {
     .item-container { padding: 4px 0; text-align: center; color: #000000 !important; }
     
     .pos-item { 
-        font-size: 26px;
+        font-size: 26px; 
         font-weight: 900; 
         color: #000000 !important; 
         margin: 0 0 4px 0; 
@@ -594,7 +524,7 @@ body {
     }
     
     .pos-qty { 
-        font-size: 18px;
+        font-size: 18px; 
         font-weight: 900; 
         color: #000000 !important; 
         display: inline-block; 
@@ -604,7 +534,7 @@ body {
     }
     
     .meta-line { 
-        display: block;
+        display: block; 
         text-align: center; 
         font-size: 13px; 
         font-weight: 900; 
@@ -612,7 +542,7 @@ body {
     }
     
     .report-title { 
-        font-size: 14px;
+        font-size: 14px; 
         font-weight: 900; 
         text-align: center; 
         margin: 4px 0; 
@@ -620,7 +550,7 @@ body {
     }
     
     .report-category-header { 
-        font-size: 12px;
+        font-size: 12px; 
         font-weight: 900; 
         text-align: left; 
         text-transform: uppercase; 
@@ -630,19 +560,19 @@ body {
     }
     
     .report-row { 
-        display: flex !important;
+        display: flex !important; 
         justify-content: space-between !important; 
         align-items: center !important; 
         width: 100% !important; 
         box-sizing: border-box !important; 
         font-size: 14px !important; 
-        font-weight: 900 !important;
+        font-weight: 900 !important; 
         margin: 4px 0 !important; 
         padding-right: 6mm !important; 
     }
     
     .highlight-box { 
-        border: 2px solid #000000 !important;
+        border: 2px solid #000000 !important; 
         padding: 6px; 
         margin: 8px 0; 
         text-align: center;
