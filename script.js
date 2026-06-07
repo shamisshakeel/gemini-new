@@ -743,7 +743,13 @@ function renderLogs() {
             });
             html += `</div>`;
         }
-        html += `<button class="print-report-btn" onclick="printSummaryReport(${index})">Generate Thermal Report</button></div>`;
+        
+        // ADDED: Two buttons side by side for Summary Report and Detailed Logs
+        html += `<div style="display:flex; gap:8px; margin-top:16px;">
+                    <button class="print-report-btn" style="margin-top:0; flex:1;" onclick="printSummaryReport(${index})">Summary Report</button>
+                    <button class="print-report-btn" style="margin-top:0; flex:1; background:#f0fdf4; color:#166534; border-color:#bbf7d0;" onclick="printHistoricalShiftLogs(${index})">Detailed Logs</button>
+                 </div>
+            </div>`;
         histContainer.insertAdjacentHTML('afterbegin', html);
     });
 }
@@ -793,6 +799,7 @@ function printSingleRefundToken(refundObj) {
     setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
 
+// Thermal Report Generator for Historical Summary
 function printSummaryReport(index) {
     const day = allTimeHistory[index];
     const printArea = document.getElementById('print-area');
@@ -837,6 +844,77 @@ function printSummaryReport(index) {
         </div>
         <div class="pos-divider"></div>
     `;
+    printArea.appendChild(reportDiv);
+    setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
+}
+
+// Thermal Report Generator for Historical Detailed Shift Logs (Active & Void Separated)
+function printHistoricalShiftLogs(index) {
+    const day = allTimeHistory[index];
+    if (!day) return;
+
+    const printArea = document.getElementById('print-area');
+    printArea.innerHTML = '';
+
+    let timeRangeTitle = (day.startTime && day.endTime) ? `${day.startTime} TO ${day.endTime}` : 'SHIFT LOGS';
+    
+    let salesHtml = '';
+    let refundsHtml = '';
+    
+    if (day.detailedTimeline && day.detailedTimeline.length > 0) {
+        day.detailedTimeline.forEach(t => {
+            let wCalc = ((t.qty * getItemWeight(t.item)) / 1000).toFixed(2);
+            let tNumDisplay = t.tokenNum ? `T-#${t.tokenNum}` : 'N/A';
+            let custDisplay = t.customer || 'Walk-In';
+            
+            if (t.type === 'SALE') {
+                salesHtml += `
+                    <div class="report-row" style="font-size:11px !important; margin-bottom:4px !important; align-items:flex-start !important; border-bottom:1px dashed #000000 !important; padding-bottom:4px;">
+                        <div style="flex:1;">
+                            <div style="font-weight:900;">${t.time} &nbsp;|&nbsp; ${tNumDisplay}</div>
+                            <div style="font-size:12px; font-weight:900; margin-top:2px;">${t.item} <br><span style="font-size:9px; font-weight:bold; text-transform:uppercase;">(${custDisplay})</span></div>
+                        </div>
+                        <div style="text-align:right; font-weight:900; padding-left:10px;">
+                            x${t.qty}<br><span style="font-weight:normal; font-size:9px;">${wCalc} KG</span>
+                        </div>
+                    </div>
+                `;
+            } else if (t.type === 'REFUND') {
+                refundsHtml += `
+                    <div class="report-row" style="font-size:11px !important; margin-bottom:4px !important; align-items:flex-start !important; border-bottom:1px dashed #000000 !important; padding-bottom:4px;">
+                        <div style="flex:1; text-decoration:line-through;">
+                            <div style="font-weight:900;">${t.time} &nbsp;|&nbsp; ${tNumDisplay}</div>
+                            <div style="font-size:12px; font-weight:900; margin-top:2px;">${t.item}</div>
+                        </div>
+                        <div style="text-align:right; font-weight:900; padding-left:10px;">
+                            -x${t.qty}<br><span style="font-weight:normal; font-size:9px;">-${wCalc} KG</span>
+                        </div>
+                    </div>
+                `;
+            }
+        });
+    }
+
+    if (!salesHtml) salesHtml = '<div style="font-size:11px; text-align:center; margin-bottom:10px;">No active logs recorded.</div>';
+    if (!refundsHtml) refundsHtml = '<div style="font-size:11px; text-align:center; margin-bottom:10px;">No refund logs recorded.</div>';
+
+    let reportDiv = document.createElement('div');
+    reportDiv.className = 'pos-report';
+    reportDiv.innerHTML = `
+        <div class="brand-main">AHMED HANIF RAJPUT</div>
+        <div class="report-title">HISTORICAL DETAILED LOGS</div>
+        <div class="meta-line">DATE: ${normalizeToSystemDate(day.date)}</div>
+        <div class="meta-line">SHIFT: ${timeRangeTitle}</div>
+        <div class="pos-divider"></div>
+        <div class="report-category-header" style="text-align:center; border-bottom:none !important; margin-bottom:8px;">--- PRINTED ACTIVE LOGS ---</div>
+        ${salesHtml}
+        <div class="pos-divider-thin" style="margin:8px 0;"></div>
+        <div class="report-category-header" style="text-align:center; border-bottom:none !important; margin-bottom:8px;">--- TERMINATED REFUND LOGS ---</div>
+        ${refundsHtml}
+        <div class="pos-divider"></div>
+        <div style="font-size:11px; font-weight:900; text-align:center;">END OF DETAILED LOGS</div>
+    `;
+    
     printArea.appendChild(reportDiv);
     setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
