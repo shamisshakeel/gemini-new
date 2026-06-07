@@ -20,7 +20,9 @@ let currentRefundLog = JSON.parse(localStorage.getItem('currentRefundLog')) || [
 let allTimeHistory = JSON.parse(localStorage.getItem('allTimeHistory')) || [];
 let knownCustomers = JSON.parse(localStorage.getItem('knownCustomers')) || [];
 let auditLogs = JSON.parse(localStorage.getItem('auditLogs')) || [];
+
 let shiftStartTime = localStorage.getItem('shiftStartTime') || null;
+let shiftStartDate = localStorage.getItem('shiftStartDate') || null;
 
 // Sequential Token Tracking Engine Initialization
 let globalTokenCounter = parseInt(localStorage.getItem('globalTokenCounter')) || 100;
@@ -54,7 +56,7 @@ function getFormattedSystemDate(dateObj = new Date()) {
     return `${day} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
 }
 
-// Levenshtein String Proximity Matcher (Automated Customer Identification Matching)
+// Levenshtein String Proximity Matcher
 function getLevenshteinDistance(a, b) {
     if (a.length === 0) return b.length;
     if (b.length === 0) return a.length;
@@ -102,7 +104,6 @@ function populateCustomerDatalist() {
     });
 }
 
-// Router Workspace Tab Switch View Controller
 function switchView(tabId) {
     document.querySelectorAll('.tab-content').forEach(element => element.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
@@ -113,7 +114,6 @@ function switchView(tabId) {
     }
 }
 
-// Security Verification Layer Modals Engine
 function openPinModal(title, type, successCallback) {
     document.getElementById('modal-title-text').innerText = title;
     document.getElementById('modal-pin-input').value = '';
@@ -128,7 +128,6 @@ function logAuditEvent(type, description) {
     let timestamp = `${getFormattedSystemDate(now)} ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
     auditLogs.push({ time: timestamp, type: type, description: description, status: "SUCCESS" });
     localStorage.setItem('auditLogs', JSON.stringify(auditLogs));
-    console.log(`[AUDIT LOG] ${type}: ${description}`);
     
     if (document.getElementById('audit-tab') && document.getElementById('audit-tab').classList.contains('active')) {
         renderAuditLog();
@@ -250,7 +249,7 @@ function renderCustomerManagement() {
     let table = `<table class="styled-table">
         <thead>
             <tr>
-                <th>Account Holder Registry Label</th>
+                <th>Worker Registry Label</th>
                 <th style="text-align:right; width: 180px;">Actions Control</th>
             </tr>
         </thead>
@@ -310,7 +309,7 @@ function executeCustomerMerge() {
     if(srcIdx > -1) knownCustomers.splice(srcIdx, 1);
     localStorage.setItem('knownCustomers', JSON.stringify(knownCustomers));
     
-    alert(`Customer Record Integration Successful! "${source}" has been combined into "${target}".`);
+    alert(`Worker Record Integration Successful! "${source}" has been combined into "${target}".`);
     
     populateCustomerDatalist();
     populateMergeDropdowns();
@@ -326,6 +325,7 @@ function exportSystemBackupJSON() {
         allTimeHistory: JSON.parse(localStorage.getItem('allTimeHistory')) || allTimeHistory,
         knownCustomers: JSON.parse(localStorage.getItem('knownCustomers')) || knownCustomers,
         shiftStartTime: localStorage.getItem('shiftStartTime') || shiftStartTime,
+        shiftStartDate: localStorage.getItem('shiftStartDate') || shiftStartDate,
         globalTokenCounter: globalTokenCounter
     };
     
@@ -364,11 +364,19 @@ function importSystemBackupJSON() {
             localStorage.setItem('currentRefundLog', JSON.stringify(parsedData.currentRefundLog || []));
             localStorage.setItem('allTimeHistory', JSON.stringify(parsedData.allTimeHistory || []));
             localStorage.setItem('knownCustomers', JSON.stringify(parsedData.knownCustomers || []));
+            
             if(parsedData.shiftStartTime) {
                 localStorage.setItem('shiftStartTime', parsedData.shiftStartTime);
             } else {
                 localStorage.removeItem('shiftStartTime');
             }
+
+            if(parsedData.shiftStartDate) {
+                localStorage.setItem('shiftStartDate', parsedData.shiftStartDate);
+            } else {
+                localStorage.removeItem('shiftStartDate');
+            }
+
             if(parsedData.globalTokenCounter) {
                 localStorage.setItem('globalTokenCounter', parsedData.globalTokenCounter);
                 globalTokenCounter = parseInt(parsedData.globalTokenCounter);
@@ -380,6 +388,7 @@ function importSystemBackupJSON() {
             allTimeHistory = parsedData.allTimeHistory || [];
             knownCustomers = parsedData.knownCustomers || [];
             shiftStartTime = parsedData.shiftStartTime || null;
+            shiftStartDate = parsedData.shiftStartDate || null;
             
             alert("Database Memory Override Successfully Restored!");
             location.reload(); 
@@ -453,7 +462,7 @@ function addCustomerManually() {
 
 function editCustomer(index) {
     let oldName = knownCustomers[index];
-    let newName = prompt("Alter tracked profile allocation header string:", oldName);
+    let newName = prompt("Alter tracked worker profile string:", oldName);
     if (!newName || newName.trim() === "" || newName.trim() === oldName) return;
     let formattedName = newName.trim().replace(/\b\w/g, char => char.toUpperCase());
     if (knownCustomers.includes(formattedName) && formattedName !== oldName) {
@@ -658,7 +667,7 @@ function renderLogs() {
     
     for(let i = currentDayLog.length - 1; i >= 0; i--) {
         let log = currentDayLog[i];
-        let customerDisplay = log.customer ? `<div style="font-size:11px; color:var(--primary); font-weight:700;">Profile Account: ${log.customer}</div>` : '';
+        let customerDisplay = log.customer ? `<div style="font-size:11px; color:var(--primary); font-weight:700;">Worker Name: ${log.customer}</div>` : '';
         let itemWeightKg = ((log.qty * getItemWeight(log.item)) / 1000).toFixed(2);
         
         let tokenDisplay = `<div style="font-size:11px; font-weight:800; color:var(--danger); margin-bottom:2px;">TOKEN #${log.tokenNum || 'N/A'}</div>`;
@@ -678,13 +687,14 @@ function renderLogs() {
 
     const refundBody = document.getElementById('refund-log');
     refundBody.innerHTML = '';
-    if(currentRefundLog.length === 0) { refundBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#94a3b8; padding:20px; font-size:13px;">No historical void signals logs generated.</td></tr>`; }
+    if(currentRefundLog.length === 0) { refundBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:20px; font-size:13px;">No historical void signals logs generated.</td></tr>`; }
     
     for(let j = currentRefundLog.length - 1; j >= 0; j--) {
         let rLog = currentRefundLog[j];
         let itemWeightKg = ((rLog.qty * getItemWeight(rLog.item)) / 1000).toFixed(2);
         let row = `<tr>
             <td style="color:var(--danger); font-weight:500;">${rLog.time}</td>
+            <td style="font-weight:600; color:var(--text-main);">${rLog.customer || 'Walk-In'}</td>
             <td style="font-weight:600; color:var(--text-muted); text-decoration: line-through;">
                 <div style="font-size:11px; font-weight:800; color:var(--text-muted); margin-bottom:2px;">TOKEN #${rLog.tokenNum || 'N/A'}</div>
                 ${rLog.item}
@@ -744,7 +754,6 @@ function renderLogs() {
             html += `</div>`;
         }
         
-        // ADDED: Two buttons side by side for Summary Report and Detailed Logs
         html += `<div style="display:flex; gap:8px; margin-top:16px;">
                     <button class="print-report-btn" style="margin-top:0; flex:1;" onclick="printSummaryReport(${index})">Summary Report</button>
                     <button class="print-report-btn" style="margin-top:0; flex:1; background:#f0fdf4; color:#166534; border-color:#bbf7d0;" onclick="printHistoricalShiftLogs(${index})">Detailed Logs</button>
@@ -785,7 +794,7 @@ function printSingleRefundToken(refundObj) {
     token.innerHTML = `
         <div class="brand-main">AHMED HANIF RAJPUT</div>
         <div style="font-size: 14px; font-weight: 900; text-align: center; color: #ffffff !important; background-color: #000000 !important; padding: 2px 0; margin: 4px 0;">[ VOID CANCEL ]</div>
-        <div style="font-family: Arial, sans-serif !important; font-size: 18px; font-weight: 900; text-align: center; color: #000000 !important; margin: 4px 0;">VOIDED TOKEN: #${refundObj.tokenNum || 'N/A'}</div>
+        <div style="font-family: Arial, sans-serif !important; font-size: 14px; font-weight: 900; text-align: center; color: #000000 !important; margin: 4px 0;">VOIDED TOKEN: #${refundObj.tokenNum || 'N/A'}</div>
         <div class="pos-divider"></div>
         <div class="item-container">
             <div class="pos-item" style="text-decoration: line-through;">${refundObj.item}</div>
@@ -794,6 +803,7 @@ function printSingleRefundToken(refundObj) {
         </div>
         <div class="pos-divider"></div>
         <div class="meta-line">DATE: ${getFormattedSystemDate()} &nbsp;&nbsp;&nbsp;&nbsp; TIME: ${refundObj.time}</div>
+        <div style="font-size:12px; font-weight:900; margin-top:4px; text-transform:uppercase; text-align:center;">WORKER NAME: ${refundObj.customer}</div>
     `;
     printArea.appendChild(token);
     setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
@@ -840,7 +850,7 @@ function printSummaryReport(index) {
         <div class="highlight-box">
             <div style="font-size: 11px; font-weight: 900;">MAX ACCUMULATED VOLUME</div>
             <div style="font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 2px 0;">${topItem}</div>
-            <div style="font-size: 12px; font-weight: 900;">Units count: ${maxQty}</div>
+            <div style="font-size: 12px; font-weight: 900;">Quantity: ${maxQty}</div>
         </div>
         <div class="pos-divider"></div>
     `;
@@ -848,7 +858,7 @@ function printSummaryReport(index) {
     setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
 
-// Thermal Report Generator for Historical Detailed Shift Logs (Active & Void Separated)
+// Thermal Report Generator for Historical Detailed Shift Logs (Active & Void Separated) -> Compact to save paper
 function printHistoricalShiftLogs(index) {
     const day = allTimeHistory[index];
     if (!day) return;
@@ -864,30 +874,30 @@ function printHistoricalShiftLogs(index) {
     if (day.detailedTimeline && day.detailedTimeline.length > 0) {
         day.detailedTimeline.forEach(t => {
             let wCalc = ((t.qty * getItemWeight(t.item)) / 1000).toFixed(2);
-            let tNumDisplay = t.tokenNum ? `T-#${t.tokenNum}` : 'N/A';
+            let tNumDisplay = t.tokenNum ? `T#${t.tokenNum}` : 'N/A';
             let custDisplay = t.customer || 'Walk-In';
             
             if (t.type === 'SALE') {
                 salesHtml += `
-                    <div class="report-row" style="font-size:11px !important; margin-bottom:4px !important; align-items:flex-start !important; border-bottom:1px dashed #000000 !important; padding-bottom:4px;">
-                        <div style="flex:1;">
-                            <div style="font-weight:900;">${t.time} &nbsp;|&nbsp; ${tNumDisplay}</div>
-                            <div style="font-size:12px; font-weight:900; margin-top:2px;">${t.item} <br><span style="font-size:9px; font-weight:bold; text-transform:uppercase;">(${custDisplay})</span></div>
+                    <div style="display:flex; justify-content:space-between; font-size:10px !important; border-bottom:1px dotted #000; padding:2px 0; align-items:center;">
+                        <div style="flex:1; line-height:1.2;">
+                            <b>${t.time} | ${tNumDisplay}</b><br>
+                            ${t.item} <span style="font-size:9px;">(${custDisplay})</span>
                         </div>
-                        <div style="text-align:right; font-weight:900; padding-left:10px;">
-                            x${t.qty}<br><span style="font-weight:normal; font-size:9px;">${wCalc} KG</span>
+                        <div style="text-align:right; font-weight:bold;">
+                            x${t.qty}<br><span style="font-weight:normal; font-size:8px;">${wCalc} KG</span>
                         </div>
                     </div>
                 `;
             } else if (t.type === 'REFUND') {
                 refundsHtml += `
-                    <div class="report-row" style="font-size:11px !important; margin-bottom:4px !important; align-items:flex-start !important; border-bottom:1px dashed #000000 !important; padding-bottom:4px;">
-                        <div style="flex:1; text-decoration:line-through;">
-                            <div style="font-weight:900;">${t.time} &nbsp;|&nbsp; ${tNumDisplay}</div>
-                            <div style="font-size:12px; font-weight:900; margin-top:2px;">${t.item}</div>
+                    <div style="display:flex; justify-content:space-between; font-size:10px !important; border-bottom:1px dotted #000; padding:2px 0; align-items:center; text-decoration:line-through;">
+                        <div style="flex:1; line-height:1.2;">
+                            <b>${t.time} | ${tNumDisplay}</b><br>
+                            ${t.item} <span style="font-size:9px;">(${custDisplay})</span>
                         </div>
-                        <div style="text-align:right; font-weight:900; padding-left:10px;">
-                            -x${t.qty}<br><span style="font-weight:normal; font-size:9px;">-${wCalc} KG</span>
+                        <div style="text-align:right; font-weight:bold;">
+                            -x${t.qty}<br><span style="font-weight:normal; font-size:8px;">-${wCalc} KG</span>
                         </div>
                     </div>
                 `;
@@ -906,12 +916,12 @@ function printHistoricalShiftLogs(index) {
         <div class="meta-line">DATE: ${normalizeToSystemDate(day.date)}</div>
         <div class="meta-line">SHIFT: ${timeRangeTitle}</div>
         <div class="pos-divider"></div>
-        <div class="report-category-header" style="text-align:center; border-bottom:none !important; margin-bottom:8px;">--- PRINTED ACTIVE LOGS ---</div>
+        <div class="report-category-header" style="text-align:center; border-bottom:none !important; margin-bottom:4px;">--- PRINTED ACTIVE LOGS ---</div>
         ${salesHtml}
-        <div class="pos-divider-thin" style="margin:8px 0;"></div>
-        <div class="report-category-header" style="text-align:center; border-bottom:none !important; margin-bottom:8px;">--- TERMINATED REFUND LOGS ---</div>
+        <div class="pos-divider-thin" style="margin:6px 0;"></div>
+        <div class="report-category-header" style="text-align:center; border-bottom:none !important; margin-bottom:4px;">--- TERMINATED REFUND LOGS ---</div>
         ${refundsHtml}
-        <div class="pos-divider"></div>
+        <div class="pos-divider" style="margin-top:6px;"></div>
         <div style="font-size:11px; font-weight:900; text-align:center;">END OF DETAILED LOGS</div>
     `;
     
@@ -968,13 +978,14 @@ function printActiveShiftLogs() {
     });
 
     let timeRangeTitle = shiftStartTime ? `${shiftStartTime} TO LIVE` : 'ACTIVE SHIFT';
+    let finalDate = shiftStartDate || getFormattedSystemDate();
 
     let reportDiv = document.createElement('div');
     reportDiv.className = 'pos-report';
     reportDiv.innerHTML = `
         <div class="brand-main">AHMED HANIF RAJPUT</div>
         <div class="report-title">LIVE SHIFT LOGS REPORT</div>
-        <div class="meta-line">DATE: ${getFormattedSystemDate()}</div>
+        <div class="meta-line">DATE: ${finalDate}</div>
         <div class="meta-line">SHIFT BLOCK: ${timeRangeTitle}</div>
         <div class="pos-divider"></div>
         <div class="report-row"><span>GROSS EMITTED:</span><span>${grossCount + refundCount} Units</span></div>
@@ -987,7 +998,7 @@ function printActiveShiftLogs() {
         <div class="highlight-box">
             <div style="font-size: 11px; font-weight: 900;">MAX LIVE VOLUME</div>
             <div style="font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 2px 0;">${topItem}</div>
-            <div style="font-size: 12px; font-weight: 900;">Units count: ${maxQty}</div>
+            <div style="font-size: 12px; font-weight: 900;">Quantity: ${maxQty}</div>
         </div>
         <div class="pos-divider"></div>
     `;
@@ -1001,7 +1012,7 @@ function printTokens() {
     openCustomerModal();
 }
 
-// Token Printing Generator
+// Token Printing Generator 
 function executeTokenPrinting(customerName) {
     const printArea = document.getElementById('print-area');
     printArea.innerHTML = ''; 
@@ -1011,7 +1022,9 @@ function executeTokenPrinting(customerName) {
 
     if (!shiftStartTime) {
         shiftStartTime = timeStr;
+        shiftStartDate = dateStr;
         localStorage.setItem('shiftStartTime', shiftStartTime);
+        localStorage.setItem('shiftStartDate', shiftStartDate);
     }
 
     for (let item in currentCart) {
@@ -1031,17 +1044,18 @@ function executeTokenPrinting(customerName) {
         let token = document.createElement('div');
         token.className = 'pos-token';
         
+        // Token number is now explicitly styled smaller to save ink and space.
         token.innerHTML = `
             <div class="brand-main">AHMED HANIF RAJPUT</div>
-            <div style="font-family: Arial, sans-serif !important; font-size: 16px; font-weight: 900; text-align: center; color: #000000 !important; border: 2px solid #000000; padding: 4px 0; margin: 4px 0;">TOKEN NO: ${globalTokenCounter}</div>
+            <div style="font-family: Arial, sans-serif !important; font-size: 12px; font-weight: 900; text-align: center; color: #000000 !important; border: 1px solid #000000; padding: 2px 0; margin: 2px 0;">TOKEN NO: ${globalTokenCounter}</div>
             <div class="pos-divider"></div>
             <div class="item-container">
                 <div class="pos-item">${item}</div>
-                <div class="pos-qty">UNITS COUNT: [ ${qty} ]</div>
+                <div class="pos-qty">QUANTITY: [ ${qty} ]</div>
             </div>
             <div class="pos-divider"></div>
             <div class="meta-line">DATE: ${dateStr} &nbsp;&nbsp;&nbsp;&nbsp; TIME: ${timeStr}</div>
-            <div style="font-size:12px; font-weight:900; margin-top:4px; text-transform:uppercase;">ACCOUNT MAPPING: ${customerName}</div>
+            <div style="font-size:12px; font-weight:900; margin-top:4px; text-transform:uppercase; text-align:center;">WORKER NAME: ${customerName}</div>
         `;
         printArea.appendChild(token);
     }
@@ -1087,9 +1101,10 @@ function saveCurrentShiftToHistory() {
     let shiftClosingTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     let shiftOpeningTime = shiftStartTime || (currentDayLog.length > 0 ? currentDayLog[0].time : shiftClosingTime);
     let shiftClosingTimestamp = getFormattedSystemDate();
+    let finalShiftDate = shiftStartDate || shiftClosingTimestamp;
     
     let dayRecord = { 
-        date: shiftClosingTimestamp, 
+        date: finalShiftDate, 
         startTime: shiftOpeningTime,
         endTime: shiftClosingTime,
         totalItems: netItems, 
@@ -1117,11 +1132,14 @@ function attemptStartNewDay() {
 }
 
 function startNewDay() {
-    currentDayLog = []; currentRefundLog = []; shiftStartTime = null;
+    currentDayLog = []; currentRefundLog = []; shiftStartTime = null; shiftStartDate = null;
     globalTokenCounter = 100; 
     localStorage.setItem('globalTokenCounter', globalTokenCounter);
 
-    localStorage.removeItem('currentDayLog'); localStorage.removeItem('currentRefundLog'); localStorage.removeItem('shiftStartTime');
+    localStorage.removeItem('currentDayLog'); 
+    localStorage.removeItem('currentRefundLog'); 
+    localStorage.removeItem('shiftStartTime');
+    localStorage.removeItem('shiftStartDate');
     currentCart = {}; renderCart(); renderLogs(); switchView('pos-tab');
 }
 
@@ -1132,8 +1150,11 @@ function endDay() {
         saveCurrentShiftToHistory();
         logAuditEvent("SHIFT_CONTROL", "Executed Shift End & Totalized Operational Runtime Data.");
         
-        currentDayLog = []; currentRefundLog = []; shiftStartTime = null;
-        localStorage.removeItem('currentDayLog'); localStorage.removeItem('currentRefundLog'); localStorage.removeItem('shiftStartTime');
+        currentDayLog = []; currentRefundLog = []; shiftStartTime = null; shiftStartDate = null;
+        localStorage.removeItem('currentDayLog'); 
+        localStorage.removeItem('currentRefundLog'); 
+        localStorage.removeItem('shiftStartTime');
+        localStorage.removeItem('shiftStartDate');
         
         renderLogs();
         switchView('history-tab');
@@ -1142,7 +1163,7 @@ function endDay() {
 
 function getAllConsumptionData() {
     let rows = [];
-    let liveLabel = getFormattedSystemDate();
+    let liveLabel = shiftStartDate || getFormattedSystemDate();
     currentDayLog.forEach(l => {
         rows.push({ date: liveLabel, shiftId: "LIVE", time: l.time, customer: l.customer || "Walk-In", item: l.item, qty: l.qty, type: "SALE", tokenNum: l.tokenNum });
     });
