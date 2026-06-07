@@ -26,10 +26,10 @@
 
 <div class="modal-overlay" id="customer-name-modal">
     <div class="modal-box modal-wide">
-        <div class="modal-title-bold">Customer Assignment</div>
-        <div class="modal-alert-text">A dynamic account profile label mapping verification is mandatory.</div>
+        <div class="modal-title-bold">Worker Assignment</div>
+        <div class="modal-alert-text">A dynamic worker profile label mapping verification is mandatory.</div>
         
-        <input list="customer-memory-list" type="text" id="cust-modal-name-input" class="input-field customer-modal-input" placeholder="Enter Customer Name" autocomplete="off">
+        <input list="customer-memory-list" type="text" id="cust-modal-name-input" class="input-field customer-modal-input" placeholder="Enter Worker Name" autocomplete="off">
         <datalist id="customer-memory-list"></datalist>
 
         <div class="modal-btn-group gap-20">
@@ -83,7 +83,7 @@
                             <tr>
                                 <th class="w-20">Time Block</th>
                                 <th>Item Label Mapped Profile</th>
-                                <th class="w-20 text-center">Qty Grid</th>
+                                <th class="w-20 text-center">Quantity Grid</th>
                                 <th class="w-20 text-center">Action Interface</th>
                             </tr>
                         </thead>
@@ -96,9 +96,10 @@
                     <table class="styled-table">
                         <thead>
                             <tr>
-                                <th class="w-25">Refund Window</th>
+                                <th class="w-20">Refund Window</th>
+                                <th class="w-25">Worker Name</th>
                                 <th>Item Label Title</th>
-                                <th class="w-20 text-center">Units Count</th>
+                                <th class="w-20 text-center">Quantity</th>
                             </tr>
                         </thead>
                         <tbody id="refund-log"></tbody>
@@ -161,10 +162,10 @@
         </div>
         
         <div class="main-panel">
-            <div class="section-title margin-top-0">Identity Directory Controller</div>
+            <div class="section-title margin-top-0">Worker Directory Controller</div>
             
             <div class="flex-row gap-10 margin-bottom-12">
-                <input type="text" id="new-manual-customer" class="input-field" placeholder="Create customer registry account entry...">
+                <input type="text" id="new-manual-customer" class="input-field" placeholder="Create worker registry account entry...">
                 <button class="btn btn-primary whitespace-nowrap" onclick="addCustomerManually()">Add Profile</button>
             </div>
 
@@ -178,7 +179,7 @@
             </div>
 
             <div class="margin-bottom-12">
-                <input type="text" id="customer-search-input" class="input-field" placeholder="🔍 Live Search Identity Directories..." oninput="handleCustomerSearchFilter()">
+                <input type="text" id="customer-search-input" class="input-field" placeholder="🔍 Live Search Directories..." oninput="handleCustomerSearchFilter()">
             </div>
 
             <div id="customer-management-list"></div>
@@ -237,7 +238,7 @@
 
             <div class="filter-panel">
                 <div class="filter-group">
-                    <label>Account Target Filter</label>
+                    <label>Worker Target Filter</label>
                     <select id="filter-cust" class="select-field" onchange="renderConsumptionReport()"></select>
                 </div>
                 <div class="filter-group">
@@ -256,9 +257,9 @@
                     <thead>
                         <tr>
                             <th class="w-280">Chronological Shift Timestamp Node</th>
-                            <th>Account Holder Profile Reference</th>
+                            <th>Worker Profile Reference</th>
                             <th>Menu Item Label Reference Name</th>
-                            <th class="w-120 text-right">Net Count Vector</th>
+                            <th class="w-120 text-right">Net Quantity Vector</th>
                             <th class="w-150 text-right">Retroactive Real-Time Weight (KG)</th>
                             <th class="w-120">Flow Flag State</th>
                         </tr>
@@ -286,7 +287,7 @@
                         <option value="SHIFT_CONTROL">Shift Control Actions</option>
                         <option value="PASSWORD_ATTEMPT">Password Attempts</option>
                         <option value="SETTINGS_CHANGED">Settings & Data Changes</option>
-                        <option value="CUSTOMER_MODIFIED">Customer Profile Changes</option>
+                        <option value="CUSTOMER_MODIFIED">Worker Profile Changes</option>
                         <option value="DATA_RESTORED">Data Restoration Events</option>
                         <option value="HISTORY_CLEARED">History Clear Events</option>
                     </select>
