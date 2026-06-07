@@ -130,17 +130,25 @@ body {
 .nav-buttons { display: flex; gap: 12px; }
 
 .btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: all 0.15s ease;
+    background-color: transparent !important;
+    color: var(--primary) !important;
+    border: 1px solid var(--primary) !important;
+    box-shadow: inset 0 0 5px rgba(230, 0, 0, 0.2), 0 0 5px rgba(230, 0, 0, 0.2);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    background-color: var(--primary) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 15px var(--primary), inset 0 0 10px rgba(255,255,255,0.2);
+}
+
+.btn-primary, .btn-accent-bg {
+    background-color: var(--primary) !important;
+    color: #ffffff !important;
 }
 
 .btn-primary { background: var(--primary); color: white; }
