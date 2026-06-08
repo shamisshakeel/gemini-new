@@ -858,7 +858,7 @@ function printSummaryReport(index) {
     setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
 
-// Thermal Report Generator for Historical Detailed Shift Logs (Sorted by Token, Dark Text)
+// Thermal Report Generator for Historical Detailed Shift Logs (Grouped by Worker A-Z)
 function printHistoricalShiftLogs(index) {
     const day = allTimeHistory[index];
     if (!day) return;
@@ -868,60 +868,76 @@ function printHistoricalShiftLogs(index) {
 
     let timeRangeTitle = (day.startTime && day.endTime) ? `${day.startTime} TO ${day.endTime}` : 'SHIFT LOGS';
     
-    let logsHtml = '';
-    
+    // Group logs by worker name
+    let customerGroups = {};
     if (day.detailedTimeline && day.detailedTimeline.length > 0) {
-        // Sort by Token Number (Ascending: Lowest to Highest)
-        let sortedTimeline = [...day.detailedTimeline].sort((a, b) => {
-            let tokenA = parseInt(a.tokenNum) || 0;
-            let tokenB = parseInt(b.tokenNum) || 0;
-            return tokenA - tokenB;
-        });
-
-        sortedTimeline.forEach(t => {
-            let wCalc = ((t.qty * getItemWeight(t.item)) / 1000).toFixed(2);
-            let tNumDisplay = t.tokenNum ? `T#${t.tokenNum}` : 'N/A';
-            let custDisplay = t.customer || 'Walk-In';
-            
-            if (t.type === 'SALE') {
-                logsHtml += `
-                    <div style="display:flex; justify-content:space-between; font-size:12px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center;">
-                        <div style="flex:1; line-height:1.2;">
-                            <span style="font-size:13px;">${tNumDisplay} | ${t.time}</span><br>
-                            ${t.item} <span style="font-size:10px;">(${custDisplay})</span>
-                        </div>
-                        <div style="text-align:right;">
-                            x${t.qty}<br><span style="font-size:9px;">${wCalc} KG</span>
-                        </div>
-                    </div>
-                `;
-            } else if (t.type === 'REFUND') {
-                logsHtml += `
-                    <div style="display:flex; justify-content:space-between; font-size:12px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center; text-decoration:line-through;">
-                        <div style="flex:1; line-height:1.2;">
-                            <span style="font-size:13px;">${tNumDisplay} | ${t.time}</span><br>
-                            [VOID] ${t.item} <span style="font-size:10px;">(${custDisplay})</span>
-                        </div>
-                        <div style="text-align:right;">
-                            -x${t.qty}<br><span style="font-size:9px;">-${wCalc} KG</span>
-                        </div>
-                    </div>
-                `;
+        day.detailedTimeline.forEach(t => {
+            let custName = t.customer || 'Walk-In';
+            if (!customerGroups[custName]) {
+                customerGroups[custName] = [];
             }
+            customerGroups[custName].push(t);
         });
     }
 
-    if (!logsHtml) logsHtml = '<div style="font-size:12px; font-weight:900; color:#000000; text-align:center; margin-bottom:10px;">No logs recorded.</div>';
+    // Sort worker names A-Z
+    let sortedCustomers = Object.keys(customerGroups).sort((a, b) => a.localeCompare(b));
+    let logsHtml = '';
+
+    if (sortedCustomers.length > 0) {
+        sortedCustomers.forEach(cust => {
+            // Worker Header
+            logsHtml += `
+                <div style="font-size:13px; font-weight:900; color:#000000 !important; text-align:center; margin-top:8px; border-bottom: 2px solid #000000; padding-bottom: 2px;">
+                    WORKER: ${cust}
+                </div>
+            `;
+            
+            // Sort inner logs by Token Number lowest to highest
+            let custLogs = customerGroups[cust].sort((a, b) => (parseInt(a.tokenNum) || 0) - (parseInt(b.tokenNum) || 0));
+            
+            custLogs.forEach(t => {
+                let tNumDisplay = t.tokenNum ? `T#${t.tokenNum}` : 'N/A';
+                
+                if (t.type === 'SALE') {
+                    logsHtml += `
+                        <div style="display:flex; justify-content:space-between; font-size:11px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center;">
+                            <div style="flex:1; line-height:1.2;">
+                                <span style="font-size:11px;">${tNumDisplay} | ${t.time}</span><br>
+                                ${t.item}
+                            </div>
+                            <div style="text-align:right;">
+                                x${t.qty}
+                            </div>
+                        </div>
+                    `;
+                } else if (t.type === 'REFUND') {
+                    logsHtml += `
+                        <div style="display:flex; justify-content:space-between; font-size:11px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center; text-decoration:line-through;">
+                            <div style="flex:1; line-height:1.2;">
+                                <span style="font-size:11px;">${tNumDisplay} | ${t.time}</span><br>
+                                [VOID] ${t.item}
+                            </div>
+                            <div style="text-align:right;">
+                                -x${t.qty}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        });
+    } else {
+        logsHtml = '<div style="font-size:12px; font-weight:900; color:#000000; text-align:center; margin-bottom:10px;">No logs recorded.</div>';
+    }
 
     let reportDiv = document.createElement('div');
     reportDiv.className = 'pos-report';
     reportDiv.innerHTML = `
         <div class="brand-main" style="color:#000000 !important; font-weight:900 !important;">AHMED HANIF RAJPUT</div>
-        <div class="report-title" style="color:#000000 !important; font-weight:900 !important;">DETAILED SHIFT LOGS</div>
+        <div class="report-title" style="color:#000000 !important; font-weight:900 !important;">WORKER DETAILED LOGS</div>
         <div class="meta-line" style="color:#000000 !important; font-weight:900 !important;">DATE: ${normalizeToSystemDate(day.date)}</div>
         <div class="meta-line" style="color:#000000 !important; font-weight:900 !important;">SHIFT: ${timeRangeTitle}</div>
         <div class="pos-divider"></div>
-        <div class="report-category-header" style="text-align:center; color:#000000 !important; border-bottom:none !important; margin-bottom:4px;">--- ALL LOGS (SORTED BY TOKEN) ---</div>
         ${logsHtml}
         <div class="pos-divider" style="margin-top:6px;"></div>
         <div style="font-size:12px; font-weight:900; color:#000000 !important; text-align:center;">END OF LOGS</div>
@@ -1046,6 +1062,7 @@ function executeTokenPrinting(customerName) {
         let token = document.createElement('div');
         token.className = 'pos-token';
         
+        // Token number is explicitly styled smaller to save ink and space.
         token.innerHTML = `
             <div class="brand-main">AHMED HANIF RAJPUT</div>
             <div style="font-family: Arial, sans-serif !important; font-size: 12px; font-weight: 900; text-align: center; color: #000000 !important; border: 1px solid #000000; padding: 2px 0; margin: 2px 0;">TOKEN NO: ${globalTokenCounter}</div>
