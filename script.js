@@ -858,7 +858,7 @@ function printSummaryReport(index) {
     setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
 
-// Thermal Report Generator for Historical Detailed Shift Logs (Active & Void Separated) -> Compact to save paper
+// Thermal Report Generator for Historical Detailed Shift Logs (Sorted by Token, Dark Text)
 function printHistoricalShiftLogs(index) {
     const day = allTimeHistory[index];
     if (!day) return;
@@ -868,36 +868,42 @@ function printHistoricalShiftLogs(index) {
 
     let timeRangeTitle = (day.startTime && day.endTime) ? `${day.startTime} TO ${day.endTime}` : 'SHIFT LOGS';
     
-    let salesHtml = '';
-    let refundsHtml = '';
+    let logsHtml = '';
     
     if (day.detailedTimeline && day.detailedTimeline.length > 0) {
-        day.detailedTimeline.forEach(t => {
+        // Sort by Token Number (Ascending: Lowest to Highest)
+        let sortedTimeline = [...day.detailedTimeline].sort((a, b) => {
+            let tokenA = parseInt(a.tokenNum) || 0;
+            let tokenB = parseInt(b.tokenNum) || 0;
+            return tokenA - tokenB;
+        });
+
+        sortedTimeline.forEach(t => {
             let wCalc = ((t.qty * getItemWeight(t.item)) / 1000).toFixed(2);
             let tNumDisplay = t.tokenNum ? `T#${t.tokenNum}` : 'N/A';
             let custDisplay = t.customer || 'Walk-In';
             
             if (t.type === 'SALE') {
-                salesHtml += `
-                    <div style="display:flex; justify-content:space-between; font-size:10px !important; border-bottom:1px dotted #000; padding:2px 0; align-items:center;">
+                logsHtml += `
+                    <div style="display:flex; justify-content:space-between; font-size:12px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center;">
                         <div style="flex:1; line-height:1.2;">
-                            <b>${t.time} | ${tNumDisplay}</b><br>
-                            ${t.item} <span style="font-size:9px;">(${custDisplay})</span>
+                            <span style="font-size:13px;">${tNumDisplay} | ${t.time}</span><br>
+                            ${t.item} <span style="font-size:10px;">(${custDisplay})</span>
                         </div>
-                        <div style="text-align:right; font-weight:bold;">
-                            x${t.qty}<br><span style="font-weight:normal; font-size:8px;">${wCalc} KG</span>
+                        <div style="text-align:right;">
+                            x${t.qty}<br><span style="font-size:9px;">${wCalc} KG</span>
                         </div>
                     </div>
                 `;
             } else if (t.type === 'REFUND') {
-                refundsHtml += `
-                    <div style="display:flex; justify-content:space-between; font-size:10px !important; border-bottom:1px dotted #000; padding:2px 0; align-items:center; text-decoration:line-through;">
+                logsHtml += `
+                    <div style="display:flex; justify-content:space-between; font-size:12px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center; text-decoration:line-through;">
                         <div style="flex:1; line-height:1.2;">
-                            <b>${t.time} | ${tNumDisplay}</b><br>
-                            ${t.item} <span style="font-size:9px;">(${custDisplay})</span>
+                            <span style="font-size:13px;">${tNumDisplay} | ${t.time}</span><br>
+                            [VOID] ${t.item} <span style="font-size:10px;">(${custDisplay})</span>
                         </div>
-                        <div style="text-align:right; font-weight:bold;">
-                            -x${t.qty}<br><span style="font-weight:normal; font-size:8px;">-${wCalc} KG</span>
+                        <div style="text-align:right;">
+                            -x${t.qty}<br><span style="font-size:9px;">-${wCalc} KG</span>
                         </div>
                     </div>
                 `;
@@ -905,24 +911,20 @@ function printHistoricalShiftLogs(index) {
         });
     }
 
-    if (!salesHtml) salesHtml = '<div style="font-size:11px; text-align:center; margin-bottom:10px;">No active logs recorded.</div>';
-    if (!refundsHtml) refundsHtml = '<div style="font-size:11px; text-align:center; margin-bottom:10px;">No refund logs recorded.</div>';
+    if (!logsHtml) logsHtml = '<div style="font-size:12px; font-weight:900; color:#000000; text-align:center; margin-bottom:10px;">No logs recorded.</div>';
 
     let reportDiv = document.createElement('div');
     reportDiv.className = 'pos-report';
     reportDiv.innerHTML = `
-        <div class="brand-main">AHMED HANIF RAJPUT</div>
-        <div class="report-title">HISTORICAL DETAILED LOGS</div>
-        <div class="meta-line">DATE: ${normalizeToSystemDate(day.date)}</div>
-        <div class="meta-line">SHIFT: ${timeRangeTitle}</div>
+        <div class="brand-main" style="color:#000000 !important; font-weight:900 !important;">AHMED HANIF RAJPUT</div>
+        <div class="report-title" style="color:#000000 !important; font-weight:900 !important;">DETAILED SHIFT LOGS</div>
+        <div class="meta-line" style="color:#000000 !important; font-weight:900 !important;">DATE: ${normalizeToSystemDate(day.date)}</div>
+        <div class="meta-line" style="color:#000000 !important; font-weight:900 !important;">SHIFT: ${timeRangeTitle}</div>
         <div class="pos-divider"></div>
-        <div class="report-category-header" style="text-align:center; border-bottom:none !important; margin-bottom:4px;">--- PRINTED ACTIVE LOGS ---</div>
-        ${salesHtml}
-        <div class="pos-divider-thin" style="margin:6px 0;"></div>
-        <div class="report-category-header" style="text-align:center; border-bottom:none !important; margin-bottom:4px;">--- TERMINATED REFUND LOGS ---</div>
-        ${refundsHtml}
+        <div class="report-category-header" style="text-align:center; color:#000000 !important; border-bottom:none !important; margin-bottom:4px;">--- ALL LOGS (SORTED BY TOKEN) ---</div>
+        ${logsHtml}
         <div class="pos-divider" style="margin-top:6px;"></div>
-        <div style="font-size:11px; font-weight:900; text-align:center;">END OF DETAILED LOGS</div>
+        <div style="font-size:12px; font-weight:900; color:#000000 !important; text-align:center;">END OF LOGS</div>
     `;
     
     printArea.appendChild(reportDiv);
@@ -1044,7 +1046,6 @@ function executeTokenPrinting(customerName) {
         let token = document.createElement('div');
         token.className = 'pos-token';
         
-        // Token number is now explicitly styled smaller to save ink and space.
         token.innerHTML = `
             <div class="brand-main">AHMED HANIF RAJPUT</div>
             <div style="font-family: Arial, sans-serif !important; font-size: 12px; font-weight: 900; text-align: center; color: #000000 !important; border: 1px solid #000000; padding: 2px 0; margin: 2px 0;">TOKEN NO: ${globalTokenCounter}</div>
