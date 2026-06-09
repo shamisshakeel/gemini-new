@@ -19,7 +19,7 @@
         <input type="password" id="modal-pin-input" class="input-field pin-input" placeholder="••••">
         <div class="modal-btn-group">
             <button class="btn btn-danger btn-half" onclick="closePinModal()">Cancel</button>
-            <button class="btn btn-primary btn-half btn-accent-bg" onclick="submitPinModal()">Verify</button>
+            <button class="btn btn-primary btn-half" onclick="submitPinModal()">Verify</button>
         </div>
     </div>
 </div>
@@ -149,14 +149,14 @@
             <div id="menu-weights-management-container"></div>
             
             <div class="section-title" style="margin-top: 32px;">Core Ledger Memory Maintenance Backup</div>
-            <div class="add-item-box" style="background: #f0fdf4; border-color: #bbf7d0;">
-                <div class="box-subtitle" style="color: #166534;">System Migration Cloud Engine</div>
+            <div class="add-item-box" style="background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2);">
+                <div class="box-subtitle" style="color: #10b981;">System Migration Cloud Engine</div>
                 <div class="flex-column gap-12">
                     <button class="btn btn-primary btn-csv-green" style="width: 100%;" onclick="exportSystemBackupJSON()">Download Complete System Database Backup (.JSON)</button>
-                    <div style="border-top: 1px dashed #cbd5e1; margin: 8px 0;"></div>
-                    <label style="font-size: 12px; font-weight: 700; color: #334155;">Restore Database Configuration File</label>
-                    <input type="file" id="import-backup-file" accept=".json" class="input-field" style="background: white;">
-                    <button class="btn btn-danger" style="width: 100%; background: #fee2e2;" onclick="importSystemBackupJSON()">Upload & Override System Database Memory</button>
+                    <div style="border-top: 1px dashed var(--border); margin: 8px 0;"></div>
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-muted);">Restore Database Configuration File</label>
+                    <input type="file" id="import-backup-file" accept=".json" class="input-field">
+                    <button class="btn btn-danger" style="width: 100%;" onclick="importSystemBackupJSON()">Upload & Override System Database Memory</button>
                 </div>
             </div>
         </div>
@@ -169,8 +169,8 @@
                 <button class="btn btn-primary whitespace-nowrap" onclick="addCustomerManually()">Add Profile</button>
             </div>
 
-            <div class="add-item-box" style="background: #f8fafc; margin-bottom: 20px; border: 1px solid var(--border);">
-                <div class="box-subtitle" style="color: var(--primary);">Merge Redundant Profile Ledger Accounts</div>
+            <div class="add-item-box" style="margin-bottom: 20px;">
+                <div class="box-subtitle" style="color: var(--accent);">Merge Redundant Profile Ledger Accounts</div>
                 <div class="flex-row gap-10" style="margin-bottom: 8px;">
                     <select id="merge-source-select" class="select-field" style="font-size: 13px;"><option value="">-- Select Duplicate Profile (To Merge From) --</option></select>
                     <select id="merge-target-select" class="select-field" style="font-size: 13px;"><option value="">-- Select Target Primary Master Profile --</option></select>
@@ -189,8 +189,8 @@
 
 <div class="tab-content" id="consumption-tab">
     <div class="archive-dashboard">
-        <div class="main-panel threshold-panel-border">
-            <div class="section-title menu-header-title text-primary">⚙️ High-Consumption Alert Trigger Matrix Boundaries</div>
+        <div class="main-panel">
+            <div class="section-title margin-top-0 text-accent">⚙️ High-Consumption Alert Trigger Matrix Boundaries</div>
             <div class="rules-panel">
                 <div class="rule-group">
                     <label>Shift Target Segment Scope</label>
@@ -212,11 +212,11 @@
         </div>
 
         <div class="main-panel">
-            <div class="section-title menu-header-title text-danger">⚠️ Anomalous Volumetric Target Analysis Monitor</div>
+            <div class="section-title margin-top-0 text-danger">⚠️ Anomalous Volumetric Target Analysis Monitor</div>
             <div class="excel-table-container">
-                <table class="excel-table anomaly-table-border">
+                <table class="excel-table">
                     <thead>
-                        <tr class="header-danger-bg">
+                        <tr>
                             <th>Account Holder Reference</th>
                             <th>Menu Item Metric</th>
                             <th>Functional Category Block</th>
