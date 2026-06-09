@@ -663,7 +663,7 @@ function updateLiveBreakdown() {
 function renderLogs() {
     const logBody = document.getElementById('live-log');
     logBody.innerHTML = '';
-    if(currentDayLog.length === 0){ logBody.innerHTML = `<tr><td colspan=\"4\" style=\"text-align:center; color:var(--text-light); padding:20px; font-size:13px;\">No item array stream signals captured.</td></tr>`; }
+    if(currentDayLog.length === 0){ logBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-light); padding:20px; font-size:13px;">No item array stream signals captured.</td></tr>`; }
     
     for(let i = currentDayLog.length - 1; i >= 0; i--) {
         let log = currentDayLog[i];
@@ -687,7 +687,7 @@ function renderLogs() {
 
     const refundBody = document.getElementById('refund-log');
     refundBody.innerHTML = '';
-    if(currentRefundLog.length === 0) { refundBody.innerHTML = `<tr><td colspan=\"4\" style=\"text-align:center; color:var(--text-light); padding:20px; font-size:13px;\">No historical void signals logs generated.</td></tr>`; }
+    if(currentRefundLog.length === 0) { refundBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-light); padding:20px; font-size:13px;">No historical void signals logs generated.</td></tr>`; }
     
     for(let j = currentRefundLog.length - 1; j >= 0; j--) {
         let rLog = currentRefundLog[j];
@@ -724,7 +724,7 @@ function renderLogs() {
                 <span>Gross: ${day.grossItems || day.totalItems} | Voided: ${day.refundedItems || 0}</span>
                 <span style="color:var(--accent); font-weight:bold;">Net Operational Sum: ${day.totalItems}</span>
             </div>
-            <table style="width:100%; font-size:13px; color:var(--text-gray);">`;
+            <table style="width:100%; font-size:13px; color:var(--text-muted);">`;
         
         let categoryOrder = ["Rice", "Curry", "Bread", "Others"];
         categoryOrder.forEach(cat => {
@@ -756,7 +756,7 @@ function renderLogs() {
         
         html += `<div style="display:flex; gap:8px; margin-top:16px;">
                     <button class="print-report-btn" style="margin-top:0; flex:1;" onclick="printSummaryReport(${index})">Summary Report</button>
-                    <button class="print-report-btn" style="margin-top:0; flex:1; background:rgba(16, 185, 129, 0.1); color:var(--accent); border-color:rgba(16, 185, 129, 0.2);" onclick="printHistoricalShiftLogs(${index})">Detailed Logs</button>
+                    <button class="print-report-btn" style="margin-top:0; flex:1; background:rgba(59, 130, 246, 0.1); color:var(--accent); border-color:rgba(59, 130, 246, 0.3);" onclick="printHistoricalShiftLogs(${index})">Detailed Logs</button>
                  </div>
             </div>`;
         histContainer.insertAdjacentHTML('afterbegin', html);
@@ -1062,6 +1062,7 @@ function executeTokenPrinting(customerName) {
         let token = document.createElement('div');
         token.className = 'pos-token';
         
+        // Token number is explicitly styled smaller to save ink and space.
         token.innerHTML = `
             <div class="brand-main">AHMED HANIF RAJPUT</div>
             <div style="font-family: Arial, sans-serif !important; font-size: 12px; font-weight: 900; text-align: center; color: #000000 !important; border: 1px solid #000000; padding: 2px 0; margin: 2px 0;">TOKEN NO: ${globalTokenCounter}</div>
