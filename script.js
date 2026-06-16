@@ -23,15 +23,94 @@ let auditLogs = JSON.parse(localStorage.getItem('auditLogs')) || [];
 
 let shiftStartTime = localStorage.getItem('shiftStartTime') || null;
 let shiftStartDate = localStorage.getItem('shiftStartDate') || null;
-
-// Sequential Token Tracking Engine Initialization
 let globalTokenCounter = parseInt(localStorage.getItem('globalTokenCounter')) || 100;
 
 let activeCallback = null;
 let requiredPinType = 'refund'; 
 let activeCustomerSearchQuery = "";
 
-// Date String Sanitizer & Normalizer Engine
+// --- AUTOMATIC SHIFT ENGINE (10:00 AM to 3:00 AM) ---
+function checkAndRunAutoShift() {
+    let now = new Date();
+    let currentHour = now.getHours();
+    
+    // Calculate business date: If it's before 3:00 AM, it counts as yesterday's shift.
+    let businessDate = new Date(now);
+    if (currentHour < 3) {
+        businessDate.setDate(businessDate.getDate() - 1);
+    }
+    
+    let currentShiftDateStr = getFormattedSystemDate(businessDate);
+    let savedShiftDate = localStorage.getItem('shiftStartDate');
+    
+    // Update Smart UI Badge
+    let badgeStatus = document.getElementById('shift-display-status');
+    if (badgeStatus) {
+        badgeStatus.innerText = `Active Shift: ${currentShiftDateStr}`;
+    }
+    
+    // Check if we need to start or roll over a shift
+    if (!savedShiftDate) {
+        autoStartNewShift(currentShiftDateStr);
+    } else if (savedShiftDate !== currentShiftDateStr) {
+        autoArchiveOldShift(savedShiftDate);
+        autoStartNewShift(currentShiftDateStr);
+    }
+}
+
+function autoArchiveOldShift(oldDateStr) {
+    if (currentDayLog.length === 0 && currentRefundLog.length === 0) return;
+    
+    let netItems = 0; let grossItemsCount = 0; let summary = {}; let detailedTimeline = [];
+
+    currentDayLog.forEach(log => { 
+        netItems += log.qty; grossItemsCount += log.qty;
+        summary[log.item] = (summary[log.item] || 0) + log.qty; 
+        detailedTimeline.push({time: log.time, type: 'SALE', item: log.item, qty: log.qty, customer: log.customer, tokenNum: log.tokenNum});
+    });
+    
+    currentRefundLog.forEach(log => {
+        grossItemsCount += log.qty;
+        detailedTimeline.push({time: log.time, type: 'REFUND', item: log.item, qty: log.qty, customer: log.customer || "Walk-In", tokenNum: log.tokenNum});
+    });
+    
+    detailedTimeline.sort((a, b) => b.time.localeCompare(a.time));
+    
+    let dayRecord = { 
+        date: oldDateStr, 
+        startTime: shiftStartTime || "10:00 AM",
+        endTime: "3:00 AM",
+        totalItems: netItems, 
+        grossItems: grossItemsCount,
+        refundedItems: currentRefundLog.length, 
+        summary: summary, 
+        detailedTimeline: detailedTimeline
+    };
+    
+    allTimeHistory.push(dayRecord);
+    localStorage.setItem('allTimeHistory', JSON.stringify(allTimeHistory));
+    logAuditEvent("SHIFT_CONTROL", `Shift automatically closed and safely archived for date: ${oldDateStr}`);
+}
+
+function autoStartNewShift(newDateStr) {
+    currentDayLog = [];
+    currentRefundLog = [];
+    shiftStartTime = "10:00 AM";
+    shiftStartDate = newDateStr;
+    globalTokenCounter = 100;
+    
+    localStorage.setItem('currentDayLog', JSON.stringify([]));
+    localStorage.setItem('currentRefundLog', JSON.stringify([]));
+    localStorage.setItem('shiftStartTime', shiftStartTime);
+    localStorage.setItem('shiftStartDate', shiftStartDate);
+    localStorage.setItem('globalTokenCounter', globalTokenCounter.toString());
+    
+    logAuditEvent("SHIFT_CONTROL", `New automated shift record initialized for date: ${newDateStr}`);
+    
+    renderLogs();
+}
+
+// Date Normalizer Engine
 function normalizeToSystemDate(rawDateString) {
     if (!rawDateString) return getFormattedSystemDate();
     let workingString = rawDateString.split('(')[0].trim();
@@ -56,7 +135,7 @@ function getFormattedSystemDate(dateObj = new Date()) {
     return `${day} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
 }
 
-// Levenshtein String Proximity Matcher
+// Levenshtein Proximity Matcher
 function getLevenshteinDistance(a, b) {
     if (a.length === 0) return b.length;
     if (b.length === 0) return a.length;
@@ -105,6 +184,7 @@ function populateCustomerDatalist() {
 }
 
 function switchView(tabId) {
+    checkAndRunAutoShift(); // Ensure day is correct before viewing
     document.querySelectorAll('.tab-content').forEach(element => element.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     document.querySelectorAll('.tab-btn').forEach(element => element.classList.remove('active'));
@@ -178,7 +258,9 @@ function closePinModal() {
 
 function submitPinModal() {
     let enteredPin = document.getElementById('modal-pin-input').value.trim();
-    let targetPin = (requiredPinType === 'refund') ? '1414' : 'smoekys444';
+    // Non-numeric security pin enforced
+    let targetPin = (requiredPinType === 'refund') ? 'voidPass' : 'smoekys444';
+    
     if (enteredPin === targetPin) {
         document.getElementById('secure-pin-modal').style.display = 'none';
         if (activeCallback) activeCallback();
@@ -319,13 +401,13 @@ function executeCustomerMerge() {
 
 function exportSystemBackupJSON() {
     let backupPayload = {
-        categorizedMenu: JSON.parse(localStorage.getItem('categorizedMenu')) || customItems,
-        currentDayLog: JSON.parse(localStorage.getItem('currentDayLog')) || currentDayLog,
-        currentRefundLog: JSON.parse(localStorage.getItem('currentRefundLog')) || currentRefundLog,
-        allTimeHistory: JSON.parse(localStorage.getItem('allTimeHistory')) || allTimeHistory,
-        knownCustomers: JSON.parse(localStorage.getItem('knownCustomers')) || knownCustomers,
-        shiftStartTime: localStorage.getItem('shiftStartTime') || shiftStartTime,
-        shiftStartDate: localStorage.getItem('shiftStartDate') || shiftStartDate,
+        categorizedMenu: customItems,
+        currentDayLog: currentDayLog,
+        currentRefundLog: currentRefundLog,
+        allTimeHistory: allTimeHistory,
+        knownCustomers: knownCustomers,
+        shiftStartTime: shiftStartTime,
+        shiftStartDate: shiftStartDate,
         globalTokenCounter: globalTokenCounter
     };
     
@@ -345,7 +427,7 @@ function importSystemBackupJSON() {
         return;
     }
     
-    if(!confirm("CRITICAL WARNING: This action will completely overwrite all local application data, current shift data, history ledgers, and configurations. Proceed?")) {
+    if(!confirm("CRITICAL WARNING: This action will completely overwrite all local application data. Proceed?")) {
         return;
     }
     
@@ -355,46 +437,21 @@ function importSystemBackupJSON() {
         try {
             let parsedData = JSON.parse(event.target.result);
             
-            if(!parsedData.categorizedMenu || !parsedData.knownCustomers || !parsedData.allTimeHistory) {
-                throw new Error("Invalid schema tracking configuration variables.");
-            }
-            
             localStorage.setItem('categorizedMenu', JSON.stringify(parsedData.categorizedMenu));
             localStorage.setItem('currentDayLog', JSON.stringify(parsedData.currentDayLog || []));
             localStorage.setItem('currentRefundLog', JSON.stringify(parsedData.currentRefundLog || []));
             localStorage.setItem('allTimeHistory', JSON.stringify(parsedData.allTimeHistory || []));
             localStorage.setItem('knownCustomers', JSON.stringify(parsedData.knownCustomers || []));
             
-            if(parsedData.shiftStartTime) {
-                localStorage.setItem('shiftStartTime', parsedData.shiftStartTime);
-            } else {
-                localStorage.removeItem('shiftStartTime');
-            }
-
-            if(parsedData.shiftStartDate) {
-                localStorage.setItem('shiftStartDate', parsedData.shiftStartDate);
-            } else {
-                localStorage.removeItem('shiftStartDate');
-            }
-
-            if(parsedData.globalTokenCounter) {
-                localStorage.setItem('globalTokenCounter', parsedData.globalTokenCounter);
-                globalTokenCounter = parseInt(parsedData.globalTokenCounter);
-            }
-            
-            customItems = parsedData.categorizedMenu;
-            currentDayLog = parsedData.currentDayLog || [];
-            currentRefundLog = parsedData.currentRefundLog || [];
-            allTimeHistory = parsedData.allTimeHistory || [];
-            knownCustomers = parsedData.knownCustomers || [];
-            shiftStartTime = parsedData.shiftStartTime || null;
-            shiftStartDate = parsedData.shiftStartDate || null;
+            if(parsedData.shiftStartTime) localStorage.setItem('shiftStartTime', parsedData.shiftStartTime);
+            if(parsedData.shiftStartDate) localStorage.setItem('shiftStartDate', parsedData.shiftStartDate);
+            if(parsedData.globalTokenCounter) localStorage.setItem('globalTokenCounter', parsedData.globalTokenCounter);
             
             alert("Database Memory Override Successfully Restored!");
             location.reload(); 
             
         } catch(err) {
-            alert("Error parsing memory file: Invalid or corrupted JSON backup package schema layout.\n" + err.message);
+            alert("Error parsing memory file: Invalid or corrupted JSON backup package.");
         }
     };
     reader.readAsText(selectedFile);
@@ -433,10 +490,7 @@ function renderMenuWeightsManagement() {
 function updateItemWeightRow(index) {
     let inputField = document.getElementById(`weight-input-${index}`);
     let newW = parseInt(inputField.value);
-    if (isNaN(newW) || newW < 0) {
-        alert("Entry out of bounds range parameters.");
-        return;
-    }
+    if (isNaN(newW) || newW < 0) return alert("Entry out of bounds range parameters.");
     customItems[index].weight = newW;
     localStorage.setItem('categorizedMenu', JSON.stringify(customItems));
     alert(`Retroactive execution mapping successful. Item weight altered to ${newW}g.`);
@@ -506,10 +560,8 @@ function closeCustomerModal() { document.getElementById('customer-name-modal').s
 
 function submitCustomerModal() {
     let rawName = document.getElementById('cust-modal-name-input').value.trim();
-    if (rawName === "") {
-        alert("Valid identification matrix required.");
-        return;
-    }
+    if (rawName === "") return alert("Valid identification matrix required.");
+    
     let finalName = "";
     let matchedName = findClosestCustomerName(rawName);
     if (matchedName) {
@@ -602,7 +654,11 @@ function renderCart() {
     }
 }
 
-function addToCart(item) { currentCart[item] = (currentCart[item] || 0) + 1; renderCart(); }
+function addToCart(item) { 
+    checkAndRunAutoShift(); // Validate shift parameters
+    currentCart[item] = (currentCart[item] || 0) + 1; 
+    renderCart(); 
+}
 
 function changeQty(item, amount) { 
     currentCart[item] += amount; 
@@ -809,7 +865,6 @@ function printSingleRefundToken(refundObj) {
     setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
 
-// Thermal Report Generator for Historical Summary
 function printSummaryReport(index) {
     const day = allTimeHistory[index];
     const printArea = document.getElementById('print-area');
@@ -858,71 +913,43 @@ function printSummaryReport(index) {
     setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
 
-// Thermal Report Generator for Historical Detailed Shift Logs (Grouped by Worker A-Z)
 function printHistoricalShiftLogs(index) {
     const day = allTimeHistory[index];
     if (!day) return;
-
     const printArea = document.getElementById('print-area');
     printArea.innerHTML = '';
 
     let timeRangeTitle = (day.startTime && day.endTime) ? `${day.startTime} TO ${day.endTime}` : 'SHIFT LOGS';
-    
-    // Group logs by worker name
     let customerGroups = {};
     if (day.detailedTimeline && day.detailedTimeline.length > 0) {
         day.detailedTimeline.forEach(t => {
             let custName = t.customer || 'Walk-In';
-            if (!customerGroups[custName]) {
-                customerGroups[custName] = [];
-            }
+            if (!customerGroups[custName]) customerGroups[custName] = [];
             customerGroups[custName].push(t);
         });
     }
 
-    // Sort worker names A-Z
     let sortedCustomers = Object.keys(customerGroups).sort((a, b) => a.localeCompare(b));
     let logsHtml = '';
 
     if (sortedCustomers.length > 0) {
         sortedCustomers.forEach(cust => {
-            // Worker Header
-            logsHtml += `
-                <div style="font-size:13px; font-weight:900; color:#000000 !important; text-align:center; margin-top:8px; border-bottom: 2px solid #000000; padding-bottom: 2px;">
-                    WORKER: ${cust}
-                </div>
-            `;
-            
-            // Sort inner logs by Token Number lowest to highest
+            logsHtml += `<div style="font-size:13px; font-weight:900; color:#000000 !important; text-align:center; margin-top:8px; border-bottom: 2px solid #000000; padding-bottom: 2px;">WORKER: ${cust}</div>`;
             let custLogs = customerGroups[cust].sort((a, b) => (parseInt(a.tokenNum) || 0) - (parseInt(b.tokenNum) || 0));
-            
             custLogs.forEach(t => {
                 let tNumDisplay = t.tokenNum ? `T#${t.tokenNum}` : 'N/A';
-                
                 if (t.type === 'SALE') {
                     logsHtml += `
                         <div style="display:flex; justify-content:space-between; font-size:11px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center;">
-                            <div style="flex:1; line-height:1.2;">
-                                <span style="font-size:11px;">${tNumDisplay} | ${t.time}</span><br>
-                                ${t.item}
-                            </div>
-                            <div style="text-align:right;">
-                                x${t.qty}
-                            </div>
-                        </div>
-                    `;
+                            <div style="flex:1; line-height:1.2;"><span style="font-size:11px;">${tNumDisplay} | ${t.time}</span><br>${t.item}</div>
+                            <div style="text-align:right;">x${t.qty}</div>
+                        </div>`;
                 } else if (t.type === 'REFUND') {
                     logsHtml += `
                         <div style="display:flex; justify-content:space-between; font-size:11px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center; text-decoration:line-through;">
-                            <div style="flex:1; line-height:1.2;">
-                                <span style="font-size:11px;">${tNumDisplay} | ${t.time}</span><br>
-                                [VOID] ${t.item}
-                            </div>
-                            <div style="text-align:right;">
-                                -x${t.qty}
-                            </div>
-                        </div>
-                    `;
+                            <div style="flex:1; line-height:1.2;"><span style="font-size:11px;">${tNumDisplay} | ${t.time}</span><br>[VOID] ${t.item}</div>
+                            <div style="text-align:right;">-x${t.qty}</div>
+                        </div>`;
                 }
             });
         });
@@ -942,42 +969,20 @@ function printHistoricalShiftLogs(index) {
         <div class="pos-divider" style="margin-top:6px;"></div>
         <div style="font-size:12px; font-weight:900; color:#000000 !important; text-align:center;">END OF LOGS</div>
     `;
-    
     printArea.appendChild(reportDiv);
     setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
 
-// Thermal Report Generator for Active Live Shift Logs
 function printActiveShiftLogs() {
-    if (currentDayLog.length === 0 && currentRefundLog.length === 0) {
-        alert("No active shift log data available to print.");
-        return;
-    }
-
+    if (currentDayLog.length === 0 && currentRefundLog.length === 0) return alert("No active shift log data available to print.");
     const printArea = document.getElementById('print-area');
     printArea.innerHTML = '';
+    let grossCount = 0; let refundCount = 0; let itemTotals = {}; let topItem = "None"; let maxQty = 0;
 
-    let grossCount = 0; 
-    let refundCount = 0; 
-    let itemTotals = {};
-    let topItem = "None"; 
-    let maxQty = 0;
+    currentDayLog.forEach(log => { grossCount += log.qty; itemTotals[log.item] = (itemTotals[log.item] || 0) + log.qty; });
+    currentRefundLog.forEach(log => { refundCount += log.qty; });
 
-    currentDayLog.forEach(log => { 
-        grossCount += log.qty; 
-        itemTotals[log.item] = (itemTotals[log.item] || 0) + log.qty; 
-    });
-    
-    currentRefundLog.forEach(log => { 
-        refundCount += log.qty; 
-    });
-
-    for (let itm in itemTotals) { 
-        if (itemTotals[itm] > maxQty) { 
-            maxQty = itemTotals[itm]; 
-            topItem = itm; 
-        } 
-    }
+    for (let itm in itemTotals) { if (itemTotals[itm] > maxQty) { maxQty = itemTotals[itm]; topItem = itm; } }
 
     let itemsHtml = '';
     let categoryOrder = ["Rice", "Curry", "Bread", "Others"];
@@ -1020,7 +1025,6 @@ function printActiveShiftLogs() {
         </div>
         <div class="pos-divider"></div>
     `;
-
     printArea.appendChild(reportDiv);
     setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
@@ -1030,39 +1034,23 @@ function printTokens() {
     openCustomerModal();
 }
 
-// Token Printing Generator 
 function executeTokenPrinting(customerName) {
+    checkAndRunAutoShift(); // Validate shift integrity before generating orders
+    
     const printArea = document.getElementById('print-area');
     printArea.innerHTML = ''; 
     let now = new Date();
     let timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    let dateStr = getFormattedSystemDate(now);
-
-    if (!shiftStartTime) {
-        shiftStartTime = timeStr;
-        shiftStartDate = dateStr;
-        localStorage.setItem('shiftStartTime', shiftStartTime);
-        localStorage.setItem('shiftStartDate', shiftStartDate);
-    }
 
     for (let item in currentCart) {
         let qty = currentCart[item];
-        
         globalTokenCounter++;
         localStorage.setItem('globalTokenCounter', globalTokenCounter);
 
-        currentDayLog.push({ 
-            tokenNum: globalTokenCounter,
-            time: timeStr, 
-            item: item, 
-            qty: qty, 
-            customer: customerName 
-        });
+        currentDayLog.push({ tokenNum: globalTokenCounter, time: timeStr, item: item, qty: qty, customer: customerName });
 
         let token = document.createElement('div');
         token.className = 'pos-token';
-        
-        // Token number is explicitly styled smaller to save ink and space.
         token.innerHTML = `
             <div class="brand-main">AHMED HANIF RAJPUT</div>
             <div style="font-family: Arial, sans-serif !important; font-size: 12px; font-weight: 900; text-align: center; color: #000000 !important; border: 1px solid #000000; padding: 2px 0; margin: 2px 0;">TOKEN NO: ${globalTokenCounter}</div>
@@ -1072,7 +1060,7 @@ function executeTokenPrinting(customerName) {
                 <div class="pos-qty">QUANTITY: [ ${qty} ]</div>
             </div>
             <div class="pos-divider"></div>
-            <div class="meta-line">DATE: ${dateStr} &nbsp;&nbsp;&nbsp;&nbsp; TIME: ${timeStr}</div>
+            <div class="meta-line">DATE: ${shiftStartDate} &nbsp;&nbsp;&nbsp;&nbsp; TIME: ${timeStr}</div>
             <div style="font-size:12px; font-weight:900; margin-top:4px; text-transform:uppercase; text-align:center;">WORKER NAME: ${customerName}</div>
         `;
         printArea.appendChild(token);
@@ -1099,95 +1087,11 @@ function clearAllHistory() {
     });
 }
 
-function saveCurrentShiftToHistory() {
-    if (currentDayLog.length === 0 && currentRefundLog.length === 0) return false;
-
-    let netItems = 0; let grossItemsCount = 0; let summary = {}; let detailedTimeline = [];
-
-    currentDayLog.forEach(log => { 
-        netItems += log.qty; grossItemsCount += log.qty;
-        summary[log.item] = (summary[log.item] || 0) + log.qty; 
-        detailedTimeline.push({time: log.time, type: 'SALE', item: log.item, qty: log.qty, customer: log.customer, tokenNum: log.tokenNum});
-    });
-    currentRefundLog.forEach(log => {
-        grossItemsCount += log.qty;
-        detailedTimeline.push({time: log.time, type: 'REFUND', item: log.item, qty: log.qty, customer: log.customer || "Walk-In", tokenNum: log.tokenNum});
-    });
-    
-    detailedTimeline.sort((a, b) => b.time.localeCompare(a.time));
-    
-    let shiftClosingTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    let shiftOpeningTime = shiftStartTime || (currentDayLog.length > 0 ? currentDayLog[0].time : shiftClosingTime);
-    let shiftClosingTimestamp = getFormattedSystemDate();
-    let finalShiftDate = shiftStartDate || shiftClosingTimestamp;
-    
-    let dayRecord = { 
-        date: finalShiftDate, 
-        startTime: shiftOpeningTime,
-        endTime: shiftClosingTime,
-        totalItems: netItems, 
-        grossItems: grossItemsCount,
-        refundedItems: currentRefundLog.length, 
-        summary: summary, 
-        detailedTimeline: detailedTimeline
-    };
-    allTimeHistory.push(dayRecord);
-    localStorage.setItem('allTimeHistory', JSON.stringify(allTimeHistory));
-    return true;
-}
-
-function attemptStartNewDay() {
-    openPinModal("Enter Mandatory Master Access Code to Open New Day Block", "admin", function() {
-        let savedData = saveCurrentShiftToHistory(); 
-        startNewDay(); 
-        
-        let auditMsg = "Executed Open New Day.";
-        if (savedData) auditMsg += " Previous active records automatically archived to history vault.";
-        logAuditEvent("SHIFT_CONTROL", auditMsg);
-        
-        alert("New operational tracking register open.");
-    });
-}
-
-function startNewDay() {
-    currentDayLog = []; currentRefundLog = []; shiftStartTime = null; shiftStartDate = null;
-    globalTokenCounter = 100; 
-    localStorage.setItem('globalTokenCounter', globalTokenCounter);
-
-    localStorage.removeItem('currentDayLog'); 
-    localStorage.removeItem('currentRefundLog'); 
-    localStorage.removeItem('shiftStartTime');
-    localStorage.removeItem('shiftStartDate');
-    currentCart = {}; renderCart(); renderLogs(); switchView('pos-tab');
-}
-
-function endDay() {
-    if (currentDayLog.length === 0 && currentRefundLog.length === 0) return alert("System state queue registry matrices isolated as null.");
-    if (!confirm("Terminate current operational runtime cycle window parameters and shift dataset structures?")) return;
-    openPinModal("Administrative security checkpoint logic verified execution keys.", "admin", function() {
-        saveCurrentShiftToHistory();
-        logAuditEvent("SHIFT_CONTROL", "Executed Shift End & Totalized Operational Runtime Data.");
-        
-        currentDayLog = []; currentRefundLog = []; shiftStartTime = null; shiftStartDate = null;
-        localStorage.removeItem('currentDayLog'); 
-        localStorage.removeItem('currentRefundLog'); 
-        localStorage.removeItem('shiftStartTime');
-        localStorage.removeItem('shiftStartDate');
-        
-        renderLogs();
-        switchView('history-tab');
-    });
-}
-
 function getAllConsumptionData() {
     let rows = [];
     let liveLabel = shiftStartDate || getFormattedSystemDate();
-    currentDayLog.forEach(l => {
-        rows.push({ date: liveLabel, shiftId: "LIVE", time: l.time, customer: l.customer || "Walk-In", item: l.item, qty: l.qty, type: "SALE", tokenNum: l.tokenNum });
-    });
-    currentRefundLog.forEach(r => {
-        rows.push({ date: liveLabel, shiftId: "LIVE", time: r.time, customer: r.customer || "Walk-In", item: r.item, qty: r.qty, type: "REFUND", tokenNum: r.tokenNum });
-    });
+    currentDayLog.forEach(l => rows.push({ date: liveLabel, shiftId: "LIVE", time: l.time, customer: l.customer || "Walk-In", item: l.item, qty: l.qty, type: "SALE", tokenNum: l.tokenNum }));
+    currentRefundLog.forEach(r => rows.push({ date: liveLabel, shiftId: "LIVE", time: r.time, customer: r.customer || "Walk-In", item: r.item, qty: r.qty, type: "REFUND", tokenNum: r.tokenNum }));
     allTimeHistory.forEach((day, idx) => {
         if (day.detailedTimeline) {
             day.detailedTimeline.forEach(t => {
@@ -1202,11 +1106,7 @@ function getAllConsumptionData() {
 function populateFilterOptions() {
     let data = getAllConsumptionData();
     let customers = new Set(); let items = new Set(); let dates = new Set();
-    data.forEach(r => {
-        if(r.customer) customers.add(r.customer);
-        if(r.item) items.add(r.item);
-        if(r.date) dates.add(r.date);
-    });
+    data.forEach(r => { if(r.customer) customers.add(r.customer); if(r.item) items.add(r.item); if(r.date) dates.add(r.date); });
     let custSel = document.getElementById('filter-cust');
     let itemSel = document.getElementById('filter-item');
     let dateSel = document.getElementById('filter-date');
@@ -1221,40 +1121,26 @@ function populateFilterOptions() {
 function populateShiftSelectorOptions() {
     let selector = document.getElementById('rule-shift-selector');
     let currentSelection = selector.value;
-    
     let liveRange = shiftStartTime ? ` (Opened: ${shiftStartTime})` : ' (Matrix structural space null)';
     selector.innerHTML = `<option value="LIVE">Active Operational Runtime Engine Segment${liveRange}</option>`;
-    
     allTimeHistory.forEach((day, idx) => {
         let label = normalizeToSystemDate(day.date);
         let timeStr = (day.startTime && day.endTime) ? ` (${day.startTime} to ${day.endTime})` : '';
         selector.innerHTML += `<option value="SHIFT-${idx}">Ledger Segment: ${label}${timeStr}</option>`;
     });
-
-    if (currentSelection && selector.querySelector(`option[value="${currentSelection}"]`)) {
-        selector.value = currentSelection;
-    } else {
-        selector.value = "LIVE";
-    }
+    if (currentSelection && selector.querySelector(`option[value="${currentSelection}"]`)) selector.value = currentSelection;
+    else selector.value = "LIVE";
 }
 
 function calculateHighConsumptionMatrix(data) {
     let selectedShift = document.getElementById('rule-shift-selector').value;
-
-    let riceVal = document.getElementById('rule-rice-limit').value.trim();
-    let curryVal = document.getElementById('rule-curry-limit').value.trim();
-    let breadVal = document.getElementById('rule-bread-limit').value.trim();
-
-    let riceLimit = riceVal !== "" ? parseInt(riceVal) : null;
-    let curryLimit = curryVal !== "" ? parseInt(curryVal) : null;
-    let breadLimit = breadVal !== "" ? parseInt(breadVal) : null;
-
+    let riceLimit = parseInt(document.getElementById('rule-rice-limit').value) || null;
+    let curryLimit = parseInt(document.getElementById('rule-curry-limit').value) || null;
+    let breadLimit = parseInt(document.getElementById('rule-bread-limit').value) || null;
     let aggregation = {};
     
     data.forEach(r => {
-        if (r.shiftId !== selectedShift) return;
-        if (r.type !== 'SALE' || r.customer === 'Walk-In') return;
-        
+        if (r.shiftId !== selectedShift || r.type !== 'SALE' || r.customer === 'Walk-In') return;
         let cat = getItemCategory(r.item);
         let key = `${r.customer}||${r.item}||${cat}`;
         aggregation[key] = (aggregation[key] || 0) + r.qty;
@@ -1267,37 +1153,26 @@ function calculateHighConsumptionMatrix(data) {
     for (let key in aggregation) {
         let [customer, item, category] = key.split('||');
         let totalQty = aggregation[key];
-        let shouldFlag = false; 
-        let alertMsg = "";
+        let shouldFlag = false; let alertMsg = "";
         let calculatedW = ((totalQty * getItemWeight(item)) / 1000).toFixed(2);
 
-        if (category === "Rice" && riceLimit !== null && totalQty >= riceLimit) {
-            shouldFlag = true;
-            alertMsg = `Rice Limit Breach Alert (≥ ${riceLimit} Units)`;
-        } else if (category === "Curry" && curryLimit !== null && totalQty >= curryLimit) {
-            shouldFlag = true;
-            alertMsg = `Curry Threshold Flagged Trigger (≥ ${curryLimit} Orders)`;
-        } else if (category === "Bread" && breadLimit !== null && totalQty >= breadLimit) {
-            shouldFlag = true;
-            alertMsg = `Bulk Unit Bread Overflow Logic (≥ ${breadLimit} Pieces)`;
-        }
+        if (category === "Rice" && riceLimit !== null && totalQty >= riceLimit) { shouldFlag = true; alertMsg = `Rice Limit Breach Alert (≥ ${riceLimit} Units)`; }
+        else if (category === "Curry" && curryLimit !== null && totalQty >= curryLimit) { shouldFlag = true; alertMsg = `Curry Threshold Flagged Trigger (≥ ${curryLimit} Orders)`; }
+        else if (category === "Bread" && breadLimit !== null && totalQty >= breadLimit) { shouldFlag = true; alertMsg = `Bulk Unit Bread Overflow Logic (≥ ${breadLimit} Pieces)`; }
         
         if (shouldFlag) {
             anomaliesFound = true;
-            let tr = `<tr>
+            tbody.insertAdjacentHTML('beforeend', `<tr>
                 <td style="font-weight:700; color:var(--text-main);">${customer}</td>
                 <td>${item}</td>
                 <td style="font-weight:600; color:var(--primary);">${category}</td>
                 <td style="text-align:right; font-weight:800; color:var(--danger);">x${totalQty}</td>
                 <td style="text-align:right; font-weight:800;">${calculatedW} KG</td>
                 <td><span class="flag-pill flag-high">⚠️ ${alertMsg}</span></td>
-            </tr>`;
-            tbody.insertAdjacentHTML('beforeend', tr);
+            </tr>`);
         }
     }
-    if (!anomaliesFound) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:16px; font-size:13px;">No critical boundary tracking triggers flagged. System context baseline stable.</td></tr>`;
-    }
+    if (!anomaliesFound) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:16px; font-size:13px;">No critical boundary tracking triggers flagged. System context baseline stable.</td></tr>`;
 }
 
 function renderConsumptionReport() {
@@ -1315,10 +1190,8 @@ function renderConsumptionReport() {
         if (fDate !== "ALL" && r.date !== fDate) return false;
         return true;
     });
-    if(filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px; font-size:13px;">No ledger entries matched filter constraint attributes.</td></tr>`;
-        return;
-    }
+    if(filtered.length === 0) return tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px; font-size:13px;">No ledger entries matched filter constraint attributes.</td></tr>`;
+    
     filtered.forEach(r => {
         let statusStyle = r.type === 'REFUND' ? 'color:var(--danger); font-weight:700; background:#fee2e2; padding:4px 8px; border-radius:4px;' : 'color:var(--accent); font-weight:700; background:#dcfce7; padding:4px 8px; border-radius:4px;';
         let qtyStyle = r.type === 'REFUND' ? 'color:var(--danger); font-weight:700; text-align:right;' : 'font-weight:700; text-align:right;';
@@ -1328,15 +1201,14 @@ function renderConsumptionReport() {
         let tokenString = r.tokenNum ? ` [T-#${r.tokenNum}]` : '';
         let dateTimeDisplay = `${r.date}, ${r.time || 'N/A'}${tokenString}`;
 
-        let tr = `<tr>
+        tbody.insertAdjacentHTML('beforeend', `<tr>
             <td style="font-weight: 500; color: var(--text-muted);">${dateTimeDisplay}</td>
             <td style="font-weight:600;">${r.customer}</td>
             <td>${r.item}</td>
             <td style="${qtyStyle}">${displayQty}</td>
             <td style="text-align:right; font-weight:600;">${displayWeight} KG</td>
             <td><span style="${statusStyle}">${r.type}</span></td>
-        </tr>`;
-        tbody.insertAdjacentHTML('beforeend', tr);
+        </tr>`);
     });
 }
 
@@ -1366,11 +1238,18 @@ function exportConsumptionToCSV() {
     document.body.removeChild(link);
 }
 
+// Initial Boot Cycle Executions
+window.onload = function() {
+    checkAndRunAutoShift(); // Initial trigger on startup
+    renderCategoryFilters();
+    renderMenu();
+    renderLogs();
+    populateCustomerDatalist();
+    
+    // Automatically verify shift matrix every 60 seconds
+    setInterval(checkAndRunAutoShift, 60000); 
+};
+
 document.getElementById('modal-pin-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') submitPinModal(); });
 document.getElementById('cust-modal-name-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') submitCustomerModal(); });
 document.getElementById('new-manual-customer').addEventListener('keypress', function(e) { if (e.key === 'Enter') addCustomerManually(); });
-
-renderCategoryFilters();
-renderMenu();
-renderLogs();
-populateCustomerDatalist();
