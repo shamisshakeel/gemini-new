@@ -258,7 +258,7 @@ function renderCustomerManagement() {
     filteredCustomers.forEach((cust) => {
         let actualIndex = knownCustomers.indexOf(cust);
         table += `<tr>
-            <td style="font-weight:600; color:var(--text-dark);">${cust}</td>
+            <td style="font-weight:600; color:var(--text-main);">${cust}</td>
             <td style="text-align:right;">
                 <button class="btn-action-small btn-edit" onclick="editCustomer(${actualIndex})">Modify</button>
                 <button class="btn-action-small btn-refund" onclick="deleteCustomer(${actualIndex})">Purge</button>
@@ -416,7 +416,7 @@ function renderMenuWeightsManagement() {
         <tbody>`;
     customItems.forEach((itemObj, index) => {
         table += `<tr>
-            <td style="font-weight:600; color:var(--text-dark);">${itemObj.name}</td>
+            <td style="font-weight:600; color:var(--text-main);">${itemObj.name}</td>
             <td style="color:var(--text-muted); font-size:12px;">${itemObj.category}</td>
             <td>
                 <input type="number" class="input-field" id="weight-input-${index}" value="${itemObj.weight || 0}" style="padding:6px; font-size:13px; text-align:center;">
@@ -584,7 +584,7 @@ function renderCart() {
     const container = document.getElementById('cart-container');
     container.innerHTML = '';
     if (Object.keys(currentCart).length === 0) {
-        container.innerHTML = '<p style="color:var(--text-light); text-align:center; padding-top:45px; margin:0; font-size: 13px;">Queue Array Buffer Allocation Empty</p>';
+        container.innerHTML = '<p style="color:#94a3b8; text-align:center; padding-top:45px; margin:0; font-size: 13px;">Queue Array Buffer Allocation Empty</p>';
         return;
     }
     for (let item in currentCart) {
@@ -613,7 +613,7 @@ function changeQty(item, amount) {
 function updateLiveBreakdown() {
     const container = document.getElementById('live-total-container');
     if (currentDayLog.length === 0 && currentRefundLog.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-light); text-align:center; margin:0; font-size:13px;">Live operational transaction vectors empty.</p>';
+        container.innerHTML = '<p style="color:#94a3b8; text-align:center; margin:0; font-size:13px;">Live operational transaction vectors empty.</p>';
         return;
     }
     let grossCount = 0; let refundCount = 0; let itemTotals = {};
@@ -626,7 +626,7 @@ function updateLiveBreakdown() {
         <div style="font-size:13px; margin-bottom:12px; color:var(--text-muted);">
             <div style="font-size:11px; font-weight:700; color:var(--primary); margin-bottom:6px;">${rangeStr}</div>
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span>Gross Generated Logs:</span><span style="font-weight:600; color:var(--text-dark);">${grossCount + refundCount} Units</span>
+                <span>Gross Generated Logs:</span><span style="font-weight:600; color:var(--text-main);">${grossCount + refundCount} Units</span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:var(--danger);">
                 <span>Liquidated Void Logs:</span><span style="font-weight:600;">-${refundCount} Units</span>
@@ -636,7 +636,7 @@ function updateLiveBreakdown() {
             </div>
         </div>
         <div style="font-weight:700; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:4px;">Dynamic Mass Metrics Breakdown</div>
-        <table style="width:100%; font-size:13px; color:var(--text-dark); border-collapse:collapse;">
+        <table style="width:100%; font-size:13px; color:var(--text-main); border-collapse:collapse;">
     `;
 
     let categoryOrder = ["Rice", "Curry", "Bread", "Others"];
@@ -651,7 +651,7 @@ function updateLiveBreakdown() {
                 let calcWeightKg = ((itemTotals[item] * getItemWeight(item)) / 1000).toFixed(2);
                 html += `<tr>
                     <td style="padding:2px 0 2px 8px; font-weight:500;">${item}</td>
-                    <td style="text-align:right; font-weight:700; color:var(--text-dark);">x${itemTotals[item]} <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${calcWeightKg} KG)</span></td>
+                    <td style="text-align:right; font-weight:700; color:var(--text-main);">x${itemTotals[item]} <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${calcWeightKg} KG)</span></td>
                 </tr>`;
             }
         }
@@ -663,7 +663,7 @@ function updateLiveBreakdown() {
 function renderLogs() {
     const logBody = document.getElementById('live-log');
     logBody.innerHTML = '';
-    if(currentDayLog.length === 0){ logBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-light); padding:20px; font-size:13px;">No item array stream signals captured.</td></tr>`; }
+    if(currentDayLog.length === 0){ logBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:20px; font-size:13px;">No item array stream signals captured.</td></tr>`; }
     
     for(let i = currentDayLog.length - 1; i >= 0; i--) {
         let log = currentDayLog[i];
@@ -676,7 +676,7 @@ function renderLogs() {
             <td style="color:var(--text-muted); font-weight:500;">${log.time}</td>
             <td>
                 ${tokenDisplay}
-                <div style="font-weight:600; color:var(--text-dark);">${log.item}</div>
+                <div style="font-weight:600; color:var(--text-main);">${log.item}</div>
                 ${customerDisplay}
             </td>
             <td style="text-align:center; font-weight:700; color:var(--primary);">x${log.qty}<br><span style="font-size:10px; color:var(--text-muted); font-weight:normal;">${itemWeightKg} KG</span></td>
@@ -687,14 +687,14 @@ function renderLogs() {
 
     const refundBody = document.getElementById('refund-log');
     refundBody.innerHTML = '';
-    if(currentRefundLog.length === 0) { refundBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-light); padding:20px; font-size:13px;">No historical void signals logs generated.</td></tr>`; }
+    if(currentRefundLog.length === 0) { refundBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:20px; font-size:13px;">No historical void signals logs generated.</td></tr>`; }
     
     for(let j = currentRefundLog.length - 1; j >= 0; j--) {
         let rLog = currentRefundLog[j];
         let itemWeightKg = ((rLog.qty * getItemWeight(rLog.item)) / 1000).toFixed(2);
         let row = `<tr>
             <td style="color:var(--danger); font-weight:500;">${rLog.time}</td>
-            <td style="font-weight:600; color:var(--text-dark);">${rLog.customer || 'Walk-In'}</td>
+            <td style="font-weight:600; color:var(--text-main);">${rLog.customer || 'Walk-In'}</td>
             <td style="font-weight:600; color:var(--text-muted); text-decoration: line-through;">
                 <div style="font-size:11px; font-weight:800; color:var(--text-muted); margin-bottom:2px;">TOKEN #${rLog.tokenNum || 'N/A'}</div>
                 ${rLog.item}
@@ -708,7 +708,7 @@ function renderLogs() {
 
     const histContainer = document.getElementById('history-container');
     histContainer.innerHTML = '';
-    if(allTimeHistory.length === 0) { histContainer.innerHTML = '<p style="color:var(--text-light); text-align:center; font-size:14px; padding-top:20px; width:100%;">Vault ledger history index empty array structure.</p>'; }
+    if(allTimeHistory.length === 0) { histContainer.innerHTML = '<p style="color:#94a3b8; text-align:center; font-size:14px; padding-top:20px; width:100%;">Vault ledger history index empty array structure.</p>'; }
     
     allTimeHistory.forEach((day, index) => {
         let normalizedDateLabel = normalizeToSystemDate(day.date);
@@ -724,7 +724,7 @@ function renderLogs() {
                 <span>Gross: ${day.grossItems || day.totalItems} | Voided: ${day.refundedItems || 0}</span>
                 <span style="color:var(--accent); font-weight:bold;">Net Operational Sum: ${day.totalItems}</span>
             </div>
-            <table style="width:100%; font-size:13px; color:var(--text-muted);">`;
+            <table style="width:100%; font-size:13px; color:#475569;">`;
         
         let categoryOrder = ["Rice", "Curry", "Bread", "Others"];
         categoryOrder.forEach(cat => {
@@ -736,7 +736,7 @@ function renderLogs() {
                         catHeaderAdded = true;
                     }
                     let histItemWeight = ((day.summary[itm] * getItemWeight(itm)) / 1000).toFixed(2);
-                    html += `<tr><td style="padding:2px 0 2px 6px;">${itm}</td><td style="text-align:right; font-weight:600; color:var(--text-dark);">x${day.summary[itm]} <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">(${histItemWeight} KG)</span></td></tr>`;
+                    html += `<tr><td style="padding:2px 0 2px 6px;">${itm}</td><td style="text-align:right; font-weight:600; color:var(--text-main);">x${day.summary[itm]} <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">(${histItemWeight} KG)</span></td></tr>`;
                 }
             }
         });
@@ -745,7 +745,7 @@ function renderLogs() {
         if (day.detailedTimeline && day.detailedTimeline.length > 0) {
             html += `<div style="font-weight:700; font-size:11px; margin-top:12px; color:var(--text-muted); text-transform:uppercase; border-top: 1px dashed var(--border); padding-top: 8px;">Chronological Action Log Flow</div><div class="timeline-box">`;
             day.detailedTimeline.forEach(t => {
-                let styleRule = t.type === 'REFUND' ? 'color:var(--danger); font-weight:700;' : 'color:var(--text-dark);';
+                let styleRule = t.type === 'REFUND' ? 'color:var(--danger); font-weight:700;' : 'color:var(--text-main);';
                 let nameSuffix = t.customer ? ` (${t.customer})` : '';
                 let wCalc = ((t.qty * getItemWeight(t.item)) / 1000).toFixed(2);
                 let tNumDisplay = t.tokenNum ? `[#${t.tokenNum}] ` : '';
@@ -756,7 +756,7 @@ function renderLogs() {
         
         html += `<div style="display:flex; gap:8px; margin-top:16px;">
                     <button class="print-report-btn" style="margin-top:0; flex:1;" onclick="printSummaryReport(${index})">Summary Report</button>
-                    <button class="print-report-btn" style="margin-top:0; flex:1; background:rgba(59, 130, 246, 0.1); color:var(--accent); border-color:rgba(59, 130, 246, 0.3);" onclick="printHistoricalShiftLogs(${index})">Detailed Logs</button>
+                    <button class="print-report-btn" style="margin-top:0; flex:1; background:#f0fdf4; color:#166534; border-color:#bbf7d0;" onclick="printHistoricalShiftLogs(${index})">Detailed Logs</button>
                  </div>
             </div>`;
         histContainer.insertAdjacentHTML('afterbegin', html);
@@ -1285,7 +1285,7 @@ function calculateHighConsumptionMatrix(data) {
         if (shouldFlag) {
             anomaliesFound = true;
             let tr = `<tr>
-                <td style="font-weight:700; color:var(--text-dark);">${customer}</td>
+                <td style="font-weight:700; color:var(--text-main);">${customer}</td>
                 <td>${item}</td>
                 <td style="font-weight:600; color:var(--primary);">${category}</td>
                 <td style="text-align:right; font-weight:800; color:var(--danger);">x${totalQty}</td>
@@ -1320,7 +1320,7 @@ function renderConsumptionReport() {
         return;
     }
     filtered.forEach(r => {
-        let statusStyle = r.type === 'REFUND' ? 'color:var(--danger); font-weight:700; background:var(--danger-bg); padding:4px 8px; border-radius:8px;' : 'color:var(--accent); font-weight:700; background:rgba(16,185,129,0.1); padding:4px 8px; border-radius:8px;';
+        let statusStyle = r.type === 'REFUND' ? 'color:var(--danger); font-weight:700; background:#fee2e2; padding:4px 8px; border-radius:4px;' : 'color:var(--accent); font-weight:700; background:#dcfce7; padding:4px 8px; border-radius:4px;';
         let qtyStyle = r.type === 'REFUND' ? 'color:var(--danger); font-weight:700; text-align:right;' : 'font-weight:700; text-align:right;';
         let displayQty = r.type === 'REFUND' ? `-${r.qty}` : r.qty;
         let calcWeightKg = ((r.qty * getItemWeight(r.item)) / 1000).toFixed(2);
