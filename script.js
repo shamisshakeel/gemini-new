@@ -259,7 +259,7 @@ function closePinModal() {
 function submitPinModal() {
     let enteredPin = document.getElementById('modal-pin-input').value.trim();
     // Non-numeric security pin enforced
-    let targetPin = (requiredPinType === 'refund') ? 'voidPass' : 'smoekys444';
+    let targetPin = (requiredPinType === 'refund') ? '1414' : 'smoekys444';
     
     if (enteredPin === targetPin) {
         document.getElementById('secure-pin-modal').style.display = 'none';
