@@ -258,7 +258,6 @@ function closePinModal() {
 
 function submitPinModal() {
     let enteredPin = document.getElementById('modal-pin-input').value.trim();
-    // Non-numeric security pin enforced
     let targetPin = (requiredPinType === 'refund') ? '1414' : 'smoekys444';
     
     if (enteredPin === targetPin) {
@@ -811,8 +810,8 @@ function renderLogs() {
         }
         
         html += `<div style="display:flex; gap:8px; margin-top:16px;">
-                    <button class="print-report-btn" style="margin-top:0; flex:1;" onclick="printSummaryReport(${index})">Summary Report</button>
-                    <button class="print-report-btn" style="margin-top:0; flex:1; background:#f0fdf4; color:#166534; border-color:#bbf7d0;" onclick="printHistoricalShiftLogs(${index})">Detailed Logs</button>
+                    <button class="btn btn-neutral full-width shadow-btn" onclick="printSummaryReport(${index})">Summary Report</button>
+                    <button class="btn btn-success full-width shadow-btn" onclick="printHistoricalShiftLogs(${index})">Detailed Logs</button>
                  </div>
             </div>`;
         histContainer.insertAdjacentHTML('afterbegin', html);
