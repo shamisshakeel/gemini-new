@@ -11,12 +11,12 @@
 </head>
 <body>
 
-<div id=\"print-area\"></div>
+<div id="print-area"></div>
 
 <div class="modal-overlay" id="secure-pin-modal">
     <div class="modal-box">
         <div id="modal-title-text" class="modal-title">Security Key Required</div>
-        <input type="text" id="modal-pin-input" class="input-field pin-input" placeholder="Enter PIN">
+        <input type="password" id="modal-pin-input" class="input-field pin-input" placeholder="••••">
         <div class="modal-btn-group">
             <button class="btn btn-danger btn-half" onclick="closePinModal()">Cancel</button>
             <button class="btn btn-primary btn-half btn-accent-bg" onclick="submitPinModal()">Verify</button>
@@ -26,273 +26,289 @@
 
 <div class="modal-overlay" id="customer-name-modal">
     <div class="modal-box modal-wide">
-        <div class="modal-title-bold">Assign Rider / Worker Profile</div>
+        <div class="modal-title-bold">Worker Assignment</div>
+        <div class="modal-alert-text">A dynamic worker profile label mapping verification is mandatory.</div>
         
-        <div class="modal-search-row">
-            <input type="text" id="cust-modal-name-input" class="input-field" placeholder="Type name or select below..." list="modal-known-cust-datalist">
-            <datalist id="modal-known-cust-datalist"></datalist>
-            <button class="btn btn-accent btn-flex" onclick="submitCustomerModalDirect()">Confirm Selector</button>
-        </div>
+        <input list="customer-memory-list" type="text" id="cust-modal-name-input" class="input-field customer-modal-input" placeholder="Enter Worker Name" autocomplete="off">
+        <datalist id="customer-memory-list"></datalist>
 
-        <div class="customer-quick-grid" id="modal-quick-customer-grid"></div>
-
-        <div class="modal-btn-group" style="margin-top: 20px;">
-            <button class="btn btn-danger" style="width:100%" onclick="closeCustomerModal()">Cancel Operations</button>
+        <div class="modal-btn-group gap-20">
+            <button class="btn btn-danger btn-neutral" onclick="closeCustomerModal()">Cancel</button>
+            <button class="btn btn-primary btn-grow" onclick="submitCustomerModal()">Confirm & Print Token</button>
         </div>
     </div>
 </div>
 
-<div class="app-container">
-    
-    <header class="main-header">
-        <div class="brand-section">
-            <h1>Ahmed Hanif Rajput Pakwan</h1>
-            <span class="sub-brand">Premium Management Suite</span>
+<div class="top-navbar">
+    <h2>Ahmed Hanif Rajput Pakwan</h2>
+    <div class="smart-shift-badge">
+        <span class="status-dot-active"></span>
+        <span id="shift-display-status">Shift Engine: Loading...</span>
+    </div>
+</div>
+
+<div class="tabs-nav">
+    <button class="tab-btn active" id="btn-pos-tab" onclick="switchView('pos-tab')">Counter POS</button>
+    <button class="tab-btn" id="btn-logs-tab" onclick="switchView('logs-tab')">Live Shift Logs</button>
+    <button class="tab-btn" id="btn-history-tab" onclick="switchView('history-tab')">Saved History</button>
+    <button class="tab-btn" id="btn-customers-tab" onclick="attemptOpenCustomers()">Database & Weights Control</button>
+    <button class="tab-btn" id="btn-consumption-tab" onclick="attemptOpenConsumption()">Consumption Report Matrix</button>
+    <button class="tab-btn" id="btn-audit-tab" onclick="attemptOpenAudit()">Security Audit Log</button>
+</div>
+
+<div class="tab-content active" id="pos-tab">
+    <div class="dashboard">
+        <div class="main-panel">
+            <div class="section-title margin-top-0">Filter Category Blocks</div>
+            <div class="category-nav" id="category-filter-container"></div>
+            <div class="menu-grid" id="items-grid"></div>
+        </div>
+
+        <div class="side-panel">
+            <div class="section-title margin-top-0">Live Basket Queue</div>
+            <div class="cart-box" id="cart-container"></div>
+            <button class="btn btn-success margin-top-16" onclick="printTokens()">Print Shift Queue Tokens</button>
+        </div>
+    </div>
+</div>
+
+<div class="tab-content" id="logs-tab">
+    <div class="dashboard">
+        <div class="main-panel">
+            <div class="grid-layout-1col">
+                <div>
+                    <div class="section-title">Today's Printed Active Logs</div>
+                    <table class="styled-table">
+                        <thead>
+                            <tr>
+                                <th class="w-20">Time Block</th>
+                                <th>Item Label Mapped Profile</th>
+                                <th class="w-20 text-center">Quantity Grid</th>
+                                <th class="w-20 text-center">Action Interface</th>
+                            </tr>
+                        </thead>
+                        <tbody id="live-log"></tbody>
+                    </table>
+                </div>
+                
+                <div>
+                    <div class="section-title">Today's Terminated Refund Logs</div>
+                    <table class="styled-table">
+                        <thead>
+                            <tr>
+                                <th class="w-20">Refund Window</th>
+                                <th class="w-25">Worker Name</th>
+                                <th>Item Label Title</th>
+                                <th class="w-20 text-center">Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="refund-log"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="section-title margin-top-0">Live Operational Breakdown Statistics</div>
+            <div class="live-total-box" id="live-total-container" style="margin-bottom: 12px;"></div>
+            <button class="print-report-btn" onclick="printActiveShiftLogs()" style="margin-top: 0; width: 100%;">Print Live Shift Logs Report</button>
+        </div>
+    </div>
+</div>
+
+<div class="tab-content" id="history-tab">
+    <div class="archive-dashboard">
+        <div class="main-panel">
+            <div class="panel-header-row">
+                <div class="section-title margin-0">Structural Shift History Ledger Vault</div>
+                <button class="btn btn-danger font-size-13" onclick="clearAllHistory()">Wipe Historic Vault Logs</button>
+            </div>
+            <div class="history-grid-layout" id="history-container"></div>
+        </div>
+    </div>
+</div>
+
+<div class="tab-content" id="customers-tab">
+    <div class="archive-dashboard two-col">
+        <div class="main-panel">
+            <div class="section-title margin-top-0">Menu Weight Parameter Controller</div>
+            <div class="add-item-box">
+                <div class="box-subtitle">Inject Custom Item Matrix Card</div>
+                <div class="flex-column gap-12">
+                    <input type="text" id="new-item-name" class="input-field" placeholder="Item Name label">
+                    <select id="new-item-category" class="select-field">
+                        <option value="Rice">Rice</option>
+                        <option value="Curry">Curry</option>
+                        <option value="Bread">Bread</option>
+                        <option value="Others">Others</option>
+                    </select>
+                    <input type="number" id="new-item-weight" class="input-field" placeholder="Unit Weight Scale (Grams)" min="0">
+                    <button class="btn btn-primary" onclick="addNewItem()">Add Item Configuration</button>
+                </div>
+            </div>
+            <div id="menu-weights-management-container"></div>
+            
+            <div class="section-title" style="margin-top: 32px;">Core Ledger Memory Maintenance Backup</div>
+            <div class="add-item-box" style="background: #f0fdf4; border-color: #bbf7d0;">
+                <div class="box-subtitle" style="color: #166534;">System Migration Cloud Engine</div>
+                <div class="flex-column gap-12">
+                    <button class="btn btn-primary btn-csv-green" style="width: 100%;" onclick="exportSystemBackupJSON()">Download Complete System Database Backup (.JSON)</button>
+                    <div style="border-top: 1px dashed #cbd5e1; margin: 8px 0;"></div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155;">Restore Database Configuration File</label>
+                    <input type="file" id="import-backup-file" accept=".json" class="input-field" style="background: white;">
+                    <button class="btn btn-danger" style="width: 100%; background: #fee2e2;" onclick="importSystemBackupJSON()">Upload & Override System Database Memory</button>
+                </div>
+            </div>
         </div>
         
-        <div class="header-status-panel">
-            <div class="status-node">
-                <span class="label">Shift Started:</span>
-                <span class="value" id="shift-start-timestamp-node">No Active Shift</span>
+        <div class="main-panel">
+            <div class="section-title margin-top-0">Worker Directory Controller</div>
+            
+            <div class="flex-row gap-10 margin-bottom-12">
+                <input type="text" id="new-manual-customer" class="input-field" placeholder="Create worker registry account entry...">
+                <button class="btn btn-primary whitespace-nowrap" onclick="addCustomerManually()">Add Profile</button>
             </div>
-            <div id="shift-state-badge-container"></div>
-        </div>
 
-        <div class="view-switcher-tabs">
-            <button class="tab-btn active" id="tab-link-pos" onclick="switchView('pos')">Counter POS</button>
-            <button class="tab-btn" id="tab-link-logs" onclick="switchView('logs')">Shift Ledger</button>
-            <button class="tab-btn" id="tab-link-history" onclick="switchView('history')">All-Time History</button>
-            <button class="tab-btn" id="tab-link-settings" onclick="switchView('settings')">Configuration</button>
-            <button class="tab-btn" id="tab-link-audit" onclick="switchView('audit')">Audit Logs</button>
-        </div>
-    </header>
-
-    <main class="main-content">
-        
-        <div id="view-section-pos" class="view-panel active-view">
-            <div class="pos-layout-grid">
-                
-                <div class="pos-menu-column">
-                    <div class="category-bar-wrapper">
-                        <div class="category-scroll-container" id="category-filter-container"></div>
-                    </div>
-                    <div class="menu-items-grid" id="menu-matrix-container"></div>
+            <div class="add-item-box" style="background: #f8fafc; margin-bottom: 20px; border: 1px solid var(--border);">
+                <div class="box-subtitle" style="color: var(--primary);">Merge Redundant Profile Ledger Accounts</div>
+                <div class="flex-row gap-10" style="margin-bottom: 8px;">
+                    <select id="merge-source-select" class="select-field" style="font-size: 13px;"><option value="">-- Select Duplicate Profile (To Merge From) --</option></select>
+                    <select id="merge-target-select" class="select-field" style="font-size: 13px;"><option value="">-- Select Target Primary Master Profile --</option></select>
                 </div>
-
-                <div class="pos-cart-column">
-                    <div class="cart-card">
-                        <div class="cart-header">
-                            <h2>Current Order</h2>
-                            <div class="active-customer-badge" id="active-customer-display-node">Walk-In Customer</div>
-                        </div>
-
-                        <div class="cart-items-wrapper" id="cart-basket-container"></div>
-
-                        <div class="cart-summary-footer">
-                            <div class="summary-row total-row">
-                                <span>Total Quantity:</span>
-                                <span id="cart-total-qty">0 Items</span>
-                            </div>
-                            
-                            <div class="cart-action-buttons">
-                                <button class="btn btn-danger btn-icon-label" onclick="clearCart()">
-                                    Clear Cart
-                                </button>
-                                <button class="btn btn-accent btn-icon-label btn-large" onclick="processCheckoutCommit()">
-                                    Print Token & Save
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                <button class="btn btn-primary btn-half" style="width: 100%; font-size: 13px;" onclick="executeCustomerMerge()">Execute Record Merge Integration</button>
             </div>
+
+            <div class="margin-bottom-12">
+                <input type="text" id="customer-search-input" class="input-field" placeholder="🔍 Live Search Directories..." oninput="handleCustomerSearchFilter()">
+            </div>
+
+            <div id="customer-management-list"></div>
         </div>
+    </div>
+</div>
 
-        <div id="view-section-logs" class="view-panel">
-            <div class="panel-card">
-                <div class="panel-card-header">
-                    <h2>Current Shift Ledger</h2>
-                    <div class="panel-actions">
-                        <button class="btn btn-primary" onclick="triggerManualShiftClose()">Close Current Shift</button>
-                        <button class="btn btn-accent" onclick="exportCurrentShiftToCSV()">Export to CSV</button>
-                    </div>
+<div class="tab-content" id="consumption-tab">
+    <div class="archive-dashboard">
+        <div class="main-panel threshold-panel-border">
+            <div class="section-title menu-header-title text-primary">⚙️ High-Consumption Alert Trigger Matrix Boundaries</div>
+            <div class="rules-panel">
+                <div class="rule-group">
+                    <label>Shift Target Segment Scope</label>
+                    <select id="rule-shift-selector" class="select-field important-selector" onchange="renderConsumptionReport()"></select>
                 </div>
-
-                <div class="dashboard-stats-strip">
-                    <div class="stat-box">
-                        <span class="stat-label">Sales Counter</span>
-                        <span class="stat-val text-primary" id="summary-total-sales-count">0</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">Refund Counter</span>
-                        <span class="stat-val text-danger" id="summary-total-refund-count">0</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">Net Operational Weight</span>
-                        <span class="stat-val text-accent" id="summary-net-weight">0.00 KG</span>
-                    </div>
+                <div class="rule-group">
+                    <label>Rice Upper Limit Flag Boundary (Orders)</label>
+                    <input type="number" id="rule-rice-limit" class="input-field" value="3" min="1" oninput="renderConsumptionReport()">
                 </div>
-
-                <div class="excel-table-container">
-                    <table class="excel-table">
-                        <thead>
-                            <tr>
-                                <th class="w-150">Time</th>
-                                <th class="w-100">Token</th>
-                                <th class="w-200">Rider / Worker</th>
-                                <th>Menu Item</th>
-                                <th class="w-100">Quantity</th>
-                                <th class="w-150">Weight Metrics</th>
-                                <th class="w-120">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="logs-tbody"></tbody>
-                    </table>
+                <div class="rule-group">
+                    <label>Curry Upper Limit Flag Boundary (Orders)</label>
+                    <input type="number" id="rule-curry-limit" class="input-field" value="2" min="1" oninput="renderConsumptionReport()">
+                </div>
+                <div class="rule-group">
+                    <label>Bread Upper Limit Flag Boundary (Pieces)</label>
+                    <input type="number" id="rule-bread-limit" class="input-field" value="5" min="1" oninput="renderConsumptionReport()">
                 </div>
             </div>
         </div>
 
-        <div id="view-section-history" class="view-panel">
-            <div class="panel-card">
-                <div class="panel-card-header">
-                    <h2>Archived Historical Sheets</h2>
-                    <div class="panel-actions">
-                        <button class="btn btn-accent" onclick="exportAllTimeHistoryToCSV()">Export All-Time Data</button>
-                        <button class="btn btn-danger" onclick="clearAllTimeHistoryWithPin()">Wipe Historical Archive</button>
-                    </div>
-                </div>
-                <div class="excel-table-container">
-                    <table class="excel-table">
-                        <thead>
-                            <tr>
-                                <th class="w-200">Date & Time</th>
-                                <th class="w-100">Token</th>
-                                <th class="w-200">Rider / Worker</th>
-                                <th>Menu Item</th>
-                                <th class="w-100">Quantity</th>
-                                <th class="w-150">Weight Metrics</th>
-                                <th class="w-120">State</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-tbody"></tbody>
-                    </table>
-                </div>
+        <div class="main-panel">
+            <div class="section-title menu-header-title text-danger">⚠️ Anomalous Volumetric Target Analysis Monitor</div>
+            <div class="excel-table-container">
+                <table class="excel-table anomaly-table-border">
+                    <thead>
+                        <tr class="header-danger-bg">
+                            <th>Account Holder Reference</th>
+                            <th>Menu Item Metric</th>
+                            <th>Functional Category Block</th>
+                            <th class="w-140 text-right">Accumulated Sum</th>
+                            <th class="w-140 text-right">Dynamic Mass (KG)</th>
+                            <th class="w-260">Trigger Logic Flag Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="high-consumption-tbody"></tbody>
+                </table>
             </div>
         </div>
 
-        <div id="view-section-settings" class="view-panel">
-            <div class="settings-grid">
-                
-                <div class="panel-card">
-                    <div class="panel-card-header">
-                        <h2>Menu Item Matrix</h2>
-                    </div>
-                    <div class="settings-form-box">
-                        <h3>Add New Menu Item</h3>
-                        <div class="form-row-three">
-                            <input type="text" id="setup-item-name" class="input-field" placeholder="Item Name">
-                            <input type="text" id="setup-item-category" class="input-field" placeholder="Category">
-                            <input type="number" id="setup-item-weight" class="input-field" placeholder="Weight Per Unit (Grams)">
-                        </div>
-                        <button class="btn btn-primary" style="margin-top:12px;" onclick="addNewCustomItem()">Save Menu Item</button>
-                    </div>
-                    <div class="excel-table-container" style="max-height: 300px;">
-                        <table class="excel-table">
-                            <thead>
-                                <tr>
-                                    <th>Item Label</th>
-                                    <th>Category Group</th>
-                                    <th>Unit Weight</th>
-                                    <th class="w-100">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="settings-menu-tbody"></tbody>
-                        </table>
-                    </div>
-                </div>
+        <div class="main-panel">
+            <div class="panel-header-row margin-bottom-12">
+                <div class="section-title margin-0">Shift Consumption Stream Matrix Ledger Grid</div>
+                <button class="btn btn-primary btn-csv-green" onclick="exportConsumptionToCSV()">Export Data Sheet (.CSV Excel)</button>
+            </div>
 
-                <div class="panel-card">
-                    <div class="panel-card-header">
-                        <h2>Rider & Worker Registry</h2>
-                    </div>
-                    <div class="settings-form-box">
-                        <h3>Register Worker Profile</h3>
-                        <div class="form-row-two">
-                            <input type="text" id="setup-cust-name" class="input-field" placeholder="Rider / Worker Full Name">
-                            <button class="btn btn-primary" onclick="addNewCustomerProfile()">Register Worker</button>
-                        </div>
-                    </div>
-                    <div class="excel-table-container" style="max-height: 300px;">
-                        <table class="excel-table">
-                            <thead>
-                                <tr>
-                                    <th>Worker Profile Name</th>
-                                    <th class="w-120">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="settings-customer-tbody"></tbody>
-                        </table>
-                    </div>
+            <div class="filter-panel">
+                <div class="filter-group">
+                    <label>Worker Target Filter</label>
+                    <select id="filter-cust" class="select-field" onchange="renderConsumptionReport()"></select>
                 </div>
-
-                <div class="panel-card grid-span-two">
-                    <div class="panel-card-header">
-                        <h2>System Security & Ledger Maintenance Tools</h2>
-                    </div>
-                    <div class="utility-actions-row">
-                        <div class="util-box">
-                            <h4>Database Management</h4>
-                            <p>Export all underlying application arrays as a structured JSON backup.</p>
-                            <button class="btn btn-primary" onclick="backupSystemDataJSON()">Download Backup File</button>
-                        </div>
-                        <div class="util-box">
-                            <h4>Restore Database Asset</h4>
-                            <p>Upload a previously generated JSON backup to restore application data blocks.</p>
-                            <input type="file" id="import-json-file" style="display: none;" onchange="restoreSystemDataJSON(event)">
-                            <button class="btn btn-accent" onclick="document.getElementById('import-json-file').click()">Upload Backup File</button>
-                        </div>
-                    </div>
+                <div class="filter-group">
+                    <label>Menu Label Selector Component</label>
+                    <select id="filter-item" class="select-field" onchange="renderConsumptionReport()"></select>
                 </div>
+                <div class="filter-group">
+                    <label>Chronological Filter Boundary</label>
+                    <select id="filter-date" class="select-field" onchange="renderConsumptionReport()"></select>
+                </div>
+                <button class="btn btn-danger btn-reset-gray" onclick="clearConsumptionFilters()">Reset Parameters</button>
+            </div>
 
+            <div class="excel-table-container">
+                <table class="excel-table">
+                    <thead>
+                        <tr>
+                            <th class="w-280">Chronological Shift Timestamp Node</th>
+                            <th>Worker Profile Reference</th>
+                            <th>Menu Item Label Reference Name</th>
+                            <th class="w-120 text-right">Net Quantity Vector</th>
+                            <th class="w-150 text-right">Retroactive Real-Time Weight (KG)</th>
+                            <th class="w-120">Flow Flag State</th>
+                        </tr>
+                    </thead>
+                    <tbody id="consumption-report-tbody"></tbody>
+                </table>
             </div>
         </div>
+    </div>
+</div>
 
-        <div id="view-section-audit" class="view-panel">
-            <div class="panel-card">
-                <div class="panel-card-header">
-                    <h2>System Audit Trail Log</h2>
-                    <div class="form-group-inline">
-                        <label>Filter Event Type</label>
-                        <select id="audit-filter-type" class="select-field" onchange="renderAuditLog()">
-                            <option value="ALL">-- All Event Types --</option>
-                            <option value="SHIFT_CONTROL">Shift Control Actions</option>
-                            <option value="PASSWORD_ATTEMPT">Password Attempts</option>
-                            <option value="SETTINGS_CHANGED">Settings & Data Changes</option>
-                            <option value="CUSTOMER_MODIFIED">Worker Profile Changes</option>
-                            <option value="DATA_RESTORED">Data Restoration Events</option>
-                            <option value="HISTORY_CLEARED">History Clear Events</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="excel-table-container">
-                    <table class="excel-table">
-                        <thead>
-                            <tr>
-                                <th class="w-200">Date & Time</th>
-                                <th class="w-150">Event Category</th>
-                                <th>Event Description Details</th>
-                                <th class="w-100">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="audit-log-tbody"></tbody>
-                    </table>
+<div class="tab-content" id="audit-tab">
+    <div class="archive-dashboard">
+        <div class="main-panel">
+            <div class="panel-header-row">
+                <div class="section-title margin-0">Security Audit Log Access Ledger</div>
+                <button class="btn btn-danger font-size-13" onclick="clearAuditLog()">Purge All Audit Records</button>
+            </div>
+            
+            <div class="filter-panel" style="margin-bottom: 12px;">
+                <div class="filter-group">
+                    <label>Filter Event Type</label>
+                    <select id="audit-filter-type" class="select-field" onchange="renderAuditLog()">
+                        <option value="ALL">-- All Event Types --</option>
+                        <option value="SHIFT_CONTROL">Shift Control Actions</option>
+                        <option value="PASSWORD_ATTEMPT">Password Attempts</option>
+                        <option value="SETTINGS_CHANGED">Settings & Data Changes</option>
+                        <option value="CUSTOMER_MODIFIED">Worker Profile Changes</option>
+                        <option value="DATA_RESTORED">Data Restoration Events</option>
+                        <option value="HISTORY_CLEARED">History Clear Events</option>
+                    </select>
                 </div>
             </div>
+            
+            <div class="excel-table-container">
+                <table class="excel-table">
+                    <thead>
+                        <tr>
+                            <th class="w-200">Timestamp Node</th>
+                            <th class="w-150">Event Category Type</th>
+                            <th>Event Description Details</th>
+                            <th class="w-100">Execution Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-log-tbody"></tbody>
+                </table>
+            </div>
         </div>
-
-    </main>
+    </div>
 </div>
 
 <script src="script.js"></script>
