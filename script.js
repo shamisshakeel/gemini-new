@@ -29,12 +29,16 @@ let activeCallback = null;
 let requiredPinType = 'refund'; 
 let activeCustomerSearchQuery = "";
 
+// --- UTILITY: Persistence Helper ---
+function saveCart() {
+    localStorage.setItem('currentCart', JSON.stringify(currentCart));
+}
+
 // --- AUTOMATIC SHIFT ENGINE (10:00 AM to 3:00 AM) ---
 function checkAndRunAutoShift() {
     let now = new Date();
     let currentHour = now.getHours();
     
-    // Calculate business date: If it's before 3:00 AM, it counts as yesterday's shift.
     let businessDate = new Date(now);
     if (currentHour < 3) {
         businessDate.setDate(businessDate.getDate() - 1);
@@ -43,13 +47,11 @@ function checkAndRunAutoShift() {
     let currentShiftDateStr = getFormattedSystemDate(businessDate);
     let savedShiftDate = localStorage.getItem('shiftStartDate');
     
-    // Update Smart UI Badge
     let badgeStatus = document.getElementById('shift-display-status');
     if (badgeStatus) {
         badgeStatus.innerText = `Active Shift: ${currentShiftDateStr}`;
     }
     
-    // Check if we need to start or roll over a shift
     if (!savedShiftDate) {
         autoStartNewShift(currentShiftDateStr);
     } else if (savedShiftDate !== currentShiftDateStr) {
@@ -110,7 +112,6 @@ function autoStartNewShift(newDateStr) {
     renderLogs();
 }
 
-// Date Normalizer Engine
 function normalizeToSystemDate(rawDateString) {
     if (!rawDateString) return getFormattedSystemDate();
     let workingString = rawDateString.split('(')[0].trim();
@@ -135,7 +136,6 @@ function getFormattedSystemDate(dateObj = new Date()) {
     return `${day} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
 }
 
-// Levenshtein Proximity Matcher
 function getLevenshteinDistance(a, b) {
     if (a.length === 0) return b.length;
     if (b.length === 0) return a.length;
@@ -184,7 +184,7 @@ function populateCustomerDatalist() {
 }
 
 function switchView(tabId) {
-    checkAndRunAutoShift(); // Ensure day is correct before viewing
+    checkAndRunAutoShift(); 
     document.querySelectorAll('.tab-content').forEach(element => element.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     document.querySelectorAll('.tab-btn').forEach(element => element.classList.remove('active'));
@@ -651,17 +651,32 @@ function renderCart() {
         `;
         container.appendChild(div);
     }
+    
+    // Add a clear button just in case user needs to reset
+    let clearBtn = document.createElement('button');
+    clearBtn.className = 'btn-action-small btn-refund';
+    clearBtn.innerText = 'Clear Cart';
+    clearBtn.style.width = '100%';
+    clearBtn.style.marginTop = '10px';
+    clearBtn.onclick = () => {
+        currentCart = {};
+        saveCart();
+        renderCart();
+    };
+    container.appendChild(clearBtn);
 }
 
 function addToCart(item) { 
-    checkAndRunAutoShift(); // Validate shift parameters
+    checkAndRunAutoShift(); 
     currentCart[item] = (currentCart[item] || 0) + 1; 
+    saveCart(); // FIX: Added persistence
     renderCart(); 
 }
 
 function changeQty(item, amount) { 
     currentCart[item] += amount; 
     if (currentCart[item] <= 0) delete currentCart[item]; 
+    saveCart(); // FIX: Added persistence
     renderCart();
 }
 
@@ -810,8 +825,8 @@ function renderLogs() {
         }
         
         html += `<div style="display:flex; gap:8px; margin-top:16px;">
-                    <button class="btn btn-neutral full-width shadow-btn" onclick="printSummaryReport(${index})">Summary Report</button>
-                    <button class="btn btn-success full-width shadow-btn" onclick="printHistoricalShiftLogs(${index})">Detailed Logs</button>
+                    <button class="print-report-btn" style="margin-top:0; flex:1;" onclick="printSummaryReport(${index})">Summary Report</button>
+                    <button class="print-report-btn" style="margin-top:0; flex:1; background:#f0fdf4; color:#166534; border-color:#bbf7d0;" onclick="printHistoricalShiftLogs(${index})">Detailed Logs</button>
                  </div>
             </div>`;
         histContainer.insertAdjacentHTML('afterbegin', html);
@@ -1034,7 +1049,7 @@ function printTokens() {
 }
 
 function executeTokenPrinting(customerName) {
-    checkAndRunAutoShift(); // Validate shift integrity before generating orders
+    checkAndRunAutoShift(); 
     
     const printArea = document.getElementById('print-area');
     printArea.innerHTML = ''; 
@@ -1065,7 +1080,12 @@ function executeTokenPrinting(customerName) {
         printArea.appendChild(token);
     }
     localStorage.setItem('currentDayLog', JSON.stringify(currentDayLog));
-    setTimeout(() => { window.print(); currentCart = {}; renderCart(); renderLogs(); }, 50);
+    
+    // Clear cart after printing
+    currentCart = {};
+    saveCart();
+    
+    setTimeout(() => { window.print(); renderCart(); renderLogs(); }, 50);
 }
 
 function deleteHistoryItem(index) {
@@ -1239,13 +1259,13 @@ function exportConsumptionToCSV() {
 
 // Initial Boot Cycle Executions
 window.onload = function() {
-    checkAndRunAutoShift(); // Initial trigger on startup
+    checkAndRunAutoShift(); 
     renderCategoryFilters();
     renderMenu();
     renderLogs();
+    renderCart(); // Added
     populateCustomerDatalist();
     
-    // Automatically verify shift matrix every 60 seconds
     setInterval(checkAndRunAutoShift, 60000); 
 };
 
