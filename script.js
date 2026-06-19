@@ -23,93 +23,102 @@ let auditLogs = JSON.parse(localStorage.getItem('auditLogs')) || [];
 
 let shiftStartTime = localStorage.getItem('shiftStartTime') || null;
 let shiftStartDate = localStorage.getItem('shiftStartDate') || null;
+let activeShiftDate = localStorage.getItem('activeShiftDate') || null; // Tracks current automated shift
+
 let globalTokenCounter = parseInt(localStorage.getItem('globalTokenCounter')) || 100;
 
 let activeCallback = null;
 let requiredPinType = 'refund'; 
 let activeCustomerSearchQuery = "";
 
-// --- UTILITY: Persistence Helper ---
-function saveCart() {
-    localStorage.setItem('currentCart', JSON.stringify(currentCart));
+// ----------------------------------------------------
+// NEW FEATURE: Offline Service Worker Registration
+// ----------------------------------------------------
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            console.log('ServiceWorker registered:', reg.scope);
+        }).catch(err => {
+            console.log('ServiceWorker failure:', err);
+        });
+    });
 }
 
-// --- AUTOMATIC SHIFT ENGINE (10:00 AM to 3:00 AM) ---
-function checkAndRunAutoShift() {
+window.addEventListener('offline', () => document.getElementById('offline-banner').style.display = 'block');
+window.addEventListener('online', () => document.getElementById('offline-banner').style.display = 'none');
+if (!navigator.onLine) document.getElementById('offline-banner').style.display = 'block';
+
+// ----------------------------------------------------
+// NEW FEATURE: Automated Shift Engine (10 AM to 3 AM)
+// ----------------------------------------------------
+function getCalculatedShiftDate() {
     let now = new Date();
-    let currentHour = now.getHours();
+    let hours = now.getHours();
     
-    let businessDate = new Date(now);
-    if (currentHour < 3) {
-        businessDate.setDate(businessDate.getDate() - 1);
+    // If time is before 10 AM, this transaction still belongs to yesterday's shift.
+    let shiftStart = new Date(now);
+    if (hours < 10) {
+        shiftStart.setDate(shiftStart.getDate() - 1);
     }
     
-    let currentShiftDateStr = getFormattedSystemDate(businessDate);
-    let savedShiftDate = localStorage.getItem('shiftStartDate');
+    // Format to "DD Month YYYY"
+    return getFormattedSystemDate(shiftStart);
+}
+
+function processAutomatedShiftRollover() {
+    let currentCalculatedShift = getCalculatedShiftDate();
     
-    let badgeStatus = document.getElementById('shift-display-status');
-    if (badgeStatus) {
-        badgeStatus.innerText = `Active Shift: ${currentShiftDateStr}`;
+    if (!activeShiftDate) {
+        // First time running the new system
+        activeShiftDate = currentCalculatedShift;
+        localStorage.setItem('activeShiftDate', activeShiftDate);
+        return;
     }
-    
-    if (!savedShiftDate) {
-        autoStartNewShift(currentShiftDateStr);
-    } else if (savedShiftDate !== currentShiftDateStr) {
-        autoArchiveOldShift(savedShiftDate);
-        autoStartNewShift(currentShiftDateStr);
+
+    // Has the shift day changed?
+    if (currentCalculatedShift !== activeShiftDate) {
+        console.log("Rollover detected. Archiving old shift and resetting tokens.");
+        
+        // 1. Save data to history vault
+        let hasDataToSave = saveCurrentShiftToHistory();
+        
+        // 2. Trigger auto-download to hard drive for safety
+        if (hasDataToSave) {
+            exportSystemBackupJSON(`AHRP_Backup_AutoShiftEnd_${activeShiftDate.replace(/ /g, "_")}.json`);
+        }
+        
+        // 3. Clear logs and Reset Tokens
+        currentDayLog = [];
+        currentRefundLog = [];
+        globalTokenCounter = 100;
+        shiftStartTime = null;
+        shiftStartDate = null;
+        
+        localStorage.removeItem('currentDayLog');
+        localStorage.removeItem('currentRefundLog');
+        localStorage.removeItem('shiftStartTime');
+        localStorage.removeItem('shiftStartDate');
+        localStorage.setItem('globalTokenCounter', 100);
+        
+        // 4. Set the new shift date
+        activeShiftDate = currentCalculatedShift;
+        localStorage.setItem('activeShiftDate', activeShiftDate);
+        
+        logAuditEvent("SHIFT_CONTROL", `Automated Rollover executed for shift: ${activeShiftDate}`);
+        renderLogs();
+        renderCart();
     }
 }
 
-function autoArchiveOldShift(oldDateStr) {
-    if (currentDayLog.length === 0 && currentRefundLog.length === 0) return;
-    
-    let netItems = 0; let grossItemsCount = 0; let summary = {}; let detailedTimeline = [];
+// Check the shift status every 1 minute in the background
+setInterval(processAutomatedShiftRollover, 60000);
 
-    currentDayLog.forEach(log => { 
-        netItems += log.qty; grossItemsCount += log.qty;
-        summary[log.item] = (summary[log.item] || 0) + log.qty; 
-        detailedTimeline.push({time: log.time, type: 'SALE', item: log.item, qty: log.qty, customer: log.customer, tokenNum: log.tokenNum});
-    });
-    
-    currentRefundLog.forEach(log => {
-        grossItemsCount += log.qty;
-        detailedTimeline.push({time: log.time, type: 'REFUND', item: log.item, qty: log.qty, customer: log.customer || "Walk-In", tokenNum: log.tokenNum});
-    });
-    
-    detailedTimeline.sort((a, b) => b.time.localeCompare(a.time));
-    
-    let dayRecord = { 
-        date: oldDateStr, 
-        startTime: shiftStartTime || "10:00 AM",
-        endTime: "3:00 AM",
-        totalItems: netItems, 
-        grossItems: grossItemsCount,
-        refundedItems: currentRefundLog.length, 
-        summary: summary, 
-        detailedTimeline: detailedTimeline
-    };
-    
-    allTimeHistory.push(dayRecord);
-    localStorage.setItem('allTimeHistory', JSON.stringify(allTimeHistory));
-    logAuditEvent("SHIFT_CONTROL", `Shift automatically closed and safely archived for date: ${oldDateStr}`);
-}
-
-function autoStartNewShift(newDateStr) {
-    currentDayLog = [];
-    currentRefundLog = [];
-    shiftStartTime = "10:00 AM";
-    shiftStartDate = newDateStr;
-    globalTokenCounter = 100;
-    
-    localStorage.setItem('currentDayLog', JSON.stringify([]));
-    localStorage.setItem('currentRefundLog', JSON.stringify([]));
-    localStorage.setItem('shiftStartTime', shiftStartTime);
-    localStorage.setItem('shiftStartDate', shiftStartDate);
-    localStorage.setItem('globalTokenCounter', globalTokenCounter.toString());
-    
-    logAuditEvent("SHIFT_CONTROL", `New automated shift record initialized for date: ${newDateStr}`);
-    
-    renderLogs();
+// Exact Timestamp Generators
+function getExactTimestamp() {
+    let now = new Date();
+    let timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+    let dateStr = getFormattedSystemDate(now);
+    return `${dateStr} @ ${timeStr}`;
 }
 
 function normalizeToSystemDate(rawDateString) {
@@ -136,6 +145,7 @@ function getFormattedSystemDate(dateObj = new Date()) {
     return `${day} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
 }
 
+// Levenshtein String Proximity Matcher
 function getLevenshteinDistance(a, b) {
     if (a.length === 0) return b.length;
     if (b.length === 0) return a.length;
@@ -184,7 +194,6 @@ function populateCustomerDatalist() {
 }
 
 function switchView(tabId) {
-    checkAndRunAutoShift(); 
     document.querySelectorAll('.tab-content').forEach(element => element.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     document.querySelectorAll('.tab-btn').forEach(element => element.classList.remove('active'));
@@ -204,8 +213,7 @@ function openPinModal(title, type, successCallback) {
 }
 
 function logAuditEvent(type, description) {
-    let now = new Date();
-    let timestamp = `${getFormattedSystemDate(now)} ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    let timestamp = getExactTimestamp();
     auditLogs.push({ time: timestamp, type: type, description: description, status: "SUCCESS" });
     localStorage.setItem('auditLogs', JSON.stringify(auditLogs));
     
@@ -259,7 +267,6 @@ function closePinModal() {
 function submitPinModal() {
     let enteredPin = document.getElementById('modal-pin-input').value.trim();
     let targetPin = (requiredPinType === 'refund') ? '1414' : 'smoekys444';
-    
     if (enteredPin === targetPin) {
         document.getElementById('secure-pin-modal').style.display = 'none';
         if (activeCallback) activeCallback();
@@ -303,10 +310,8 @@ function handleCustomerSearchFilter() {
 function populateMergeDropdowns() {
     let srcSelect = document.getElementById('merge-source-select');
     let tgtSelect = document.getElementById('merge-target-select');
-    
     srcSelect.innerHTML = '<option value="">-- Select Duplicate Profile (To Merge From) --</option>';
     tgtSelect.innerHTML = '<option value="">-- Select Target Primary Master Profile --</option>';
-    
     let sortedCustomers = [...knownCustomers].sort();
     sortedCustomers.forEach(cust => {
         srcSelect.innerHTML += `<option value="${cust}">${cust}</option>`;
@@ -317,25 +322,13 @@ function populateMergeDropdowns() {
 function renderCustomerManagement() {
     const listDiv = document.getElementById('customer-management-list');
     listDiv.innerHTML = '';
-    
-    let filteredCustomers = knownCustomers.filter(cust => 
-        cust.toLowerCase().includes(activeCustomerSearchQuery)
-    );
-
+    let filteredCustomers = knownCustomers.filter(cust => cust.toLowerCase().includes(activeCustomerSearchQuery));
     if (filteredCustomers.length === 0) {
         listDiv.innerHTML = '<p style="color:var(--text-muted); padding: 12px 0;">No matching identity profiles found.</p>';
         return;
     }
-    
     let table = `<table class="styled-table">
-        <thead>
-            <tr>
-                <th>Worker Registry Label</th>
-                <th style="text-align:right; width: 180px;">Actions Control</th>
-            </tr>
-        </thead>
-        <tbody>`;
-        
+        <thead><tr><th>Worker Registry Label</th><th style="text-align:right; width: 180px;">Actions Control</th></tr></thead><tbody>`;
     filteredCustomers.forEach((cust) => {
         let actualIndex = knownCustomers.indexOf(cust);
         table += `<tr>
@@ -353,67 +346,47 @@ function renderCustomerManagement() {
 function executeCustomerMerge() {
     let source = document.getElementById('merge-source-select').value;
     let target = document.getElementById('merge-target-select').value;
+    if(!source || !target) return alert("Please select both a source and target profile.");
+    if(source === target) return alert("Cannot merge a profile into itself.");
+    if(!confirm(`Are you absolutely sure you want to merge "${source}" into "${target}"?`)) return;
     
-    if(!source || !target) {
-        alert("Please select both a source duplicate profile and a target master profile.");
-        return;
-    }
-    if(source === target) {
-        alert("Cannot merge a profile into itself.");
-        return;
-    }
-    
-    if(!confirm(`Are you absolutely sure you want to merge "${source}" into "${target}"?\nAll history records, shift logs, and analytics data will be combined into "${target}", and "${source}" will be deleted.`)) {
-        return;
-    }
-    
-    currentDayLog.forEach(log => {
-        if(log.customer === source) log.customer = target;
-    });
+    currentDayLog.forEach(log => { if(log.customer === source) log.customer = target; });
     localStorage.setItem('currentDayLog', JSON.stringify(currentDayLog));
-    
-    currentRefundLog.forEach(log => {
-        if(log.customer === source) log.customer = target;
-    });
+    currentRefundLog.forEach(log => { if(log.customer === source) log.customer = target; });
     localStorage.setItem('currentRefundLog', JSON.stringify(currentRefundLog));
-    
     allTimeHistory.forEach(day => {
-        if (day.detailedTimeline) {
-            day.detailedTimeline.forEach(entry => {
-                if (entry.customer === source) entry.customer = target;
-            });
-        }
+        if (day.detailedTimeline) { day.detailedTimeline.forEach(entry => { if (entry.customer === source) entry.customer = target; }); }
     });
     localStorage.setItem('allTimeHistory', JSON.stringify(allTimeHistory));
-    
     let srcIdx = knownCustomers.indexOf(source);
     if(srcIdx > -1) knownCustomers.splice(srcIdx, 1);
     localStorage.setItem('knownCustomers', JSON.stringify(knownCustomers));
     
     alert(`Worker Record Integration Successful! "${source}" has been combined into "${target}".`);
-    
     populateCustomerDatalist();
     populateMergeDropdowns();
     renderCustomerManagement();
     renderLogs();
 }
 
-function exportSystemBackupJSON() {
+function exportSystemBackupJSON(customFilename) {
     let backupPayload = {
-        categorizedMenu: customItems,
-        currentDayLog: currentDayLog,
-        currentRefundLog: currentRefundLog,
-        allTimeHistory: allTimeHistory,
-        knownCustomers: knownCustomers,
-        shiftStartTime: shiftStartTime,
-        shiftStartDate: shiftStartDate,
+        categorizedMenu: JSON.parse(localStorage.getItem('categorizedMenu')) || customItems,
+        currentDayLog: JSON.parse(localStorage.getItem('currentDayLog')) || currentDayLog,
+        currentRefundLog: JSON.parse(localStorage.getItem('currentRefundLog')) || currentRefundLog,
+        allTimeHistory: JSON.parse(localStorage.getItem('allTimeHistory')) || allTimeHistory,
+        knownCustomers: JSON.parse(localStorage.getItem('knownCustomers')) || knownCustomers,
+        shiftStartTime: localStorage.getItem('shiftStartTime') || shiftStartTime,
+        shiftStartDate: localStorage.getItem('shiftStartDate') || shiftStartDate,
+        activeShiftDate: localStorage.getItem('activeShiftDate') || activeShiftDate,
         globalTokenCounter: globalTokenCounter
     };
     
+    let filename = customFilename || `AHRP_POS_SYSTEM_BACKUP_${new Date().toISOString().slice(0,10)}.json`;
     let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
     let downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `AHRP_POS_SYSTEM_BACKUP_${new Date().toISOString().slice(0,10)}.json`);
+    downloadAnchor.setAttribute("download", filename);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     document.body.removeChild(downloadAnchor);
@@ -421,20 +394,14 @@ function exportSystemBackupJSON() {
 
 function importSystemBackupJSON() {
     let fileInput = document.getElementById('import-backup-file');
-    if(fileInput.files.length === 0) {
-        alert("Please select a valid (.json) backup database template file first.");
-        return;
-    }
-    
-    if(!confirm("CRITICAL WARNING: This action will completely overwrite all local application data. Proceed?")) {
-        return;
-    }
-    
+    if(fileInput.files.length === 0) return alert("Please select a valid (.json) backup database template file first.");
+    if(!confirm("CRITICAL WARNING: This action will completely overwrite all local application data. Proceed?")) return;
     let selectedFile = fileInput.files[0];
     let reader = new FileReader();
     reader.onload = function(event) {
         try {
             let parsedData = JSON.parse(event.target.result);
+            if(!parsedData.categorizedMenu || !parsedData.knownCustomers || !parsedData.allTimeHistory) throw new Error("Invalid schema tracking configuration variables.");
             
             localStorage.setItem('categorizedMenu', JSON.stringify(parsedData.categorizedMenu));
             localStorage.setItem('currentDayLog', JSON.stringify(parsedData.currentDayLog || []));
@@ -442,15 +409,15 @@ function importSystemBackupJSON() {
             localStorage.setItem('allTimeHistory', JSON.stringify(parsedData.allTimeHistory || []));
             localStorage.setItem('knownCustomers', JSON.stringify(parsedData.knownCustomers || []));
             
-            if(parsedData.shiftStartTime) localStorage.setItem('shiftStartTime', parsedData.shiftStartTime);
-            if(parsedData.shiftStartDate) localStorage.setItem('shiftStartDate', parsedData.shiftStartDate);
-            if(parsedData.globalTokenCounter) localStorage.setItem('globalTokenCounter', parsedData.globalTokenCounter);
-            
+            if(parsedData.activeShiftDate) localStorage.setItem('activeShiftDate', parsedData.activeShiftDate);
+            if(parsedData.globalTokenCounter) {
+                localStorage.setItem('globalTokenCounter', parsedData.globalTokenCounter);
+                globalTokenCounter = parseInt(parsedData.globalTokenCounter);
+            }
             alert("Database Memory Override Successfully Restored!");
             location.reload(); 
-            
         } catch(err) {
-            alert("Error parsing memory file: Invalid or corrupted JSON backup package.");
+            alert("Error parsing memory file: Invalid or corrupted JSON backup package schema layout.\n" + err.message);
         }
     };
     reader.readAsText(selectedFile);
@@ -460,27 +427,11 @@ function renderMenuWeightsManagement() {
     const container = document.getElementById('menu-weights-management-container');
     container.innerHTML = '';
     let table = `<div class="section-title" style="margin-top:16px;">Active Dynamic Mass Multiplier Factors</div>
-    <table class="styled-table">
-        <thead>
-            <tr>
-                <th>Menu Item Label</th>
-                <th>Category Mapping</th>
-                <th style="width:120px;">Unit Grams (g)</th>
-                <th style="text-align:right; width:80px;">Execution</th>
-            </tr>
-        </thead>
-        <tbody>`;
+    <table class="styled-table"><thead><tr><th>Menu Item Label</th><th>Category Mapping</th><th style="width:120px;">Unit Grams (g)</th><th style="text-align:right; width:80px;">Execution</th></tr></thead><tbody>`;
     customItems.forEach((itemObj, index) => {
-        table += `<tr>
-            <td style="font-weight:600; color:var(--text-main);">${itemObj.name}</td>
-            <td style="color:var(--text-muted); font-size:12px;">${itemObj.category}</td>
-            <td>
-                <input type="number" class="input-field" id="weight-input-${index}" value="${itemObj.weight || 0}" style="padding:6px; font-size:13px; text-align:center;">
-            </td>
-            <td style="text-align:right;">
-                <button class="btn-action-small btn-edit" style="background:var(--accent); color:white; border:none;" onclick="updateItemWeightRow(${index})">Bind</button>
-            </td>
-        </tr>`;
+        table += `<tr><td style="font-weight:600; color:var(--text-main);">${itemObj.name}</td><td style="color:var(--text-muted); font-size:12px;">${itemObj.category}</td>
+            <td><input type="number" class="input-field" id="weight-input-${index}" value="${itemObj.weight || 0}" style="padding:6px; font-size:13px; text-align:center;"></td>
+            <td style="text-align:right;"><button class="btn-action-small btn-edit" style="background:var(--accent); color:white; border:none;" onclick="updateItemWeightRow(${index})">Bind</button></td></tr>`;
     });
     table += `</tbody></table>`;
     container.innerHTML = table;
@@ -508,9 +459,7 @@ function addCustomerManually() {
         populateMergeDropdowns();
         renderCustomerManagement();
         input.value = '';
-    } else {
-        alert("Account key already exists.");
-    }
+    } else { alert("Account key already exists."); }
 }
 
 function editCustomer(index) {
@@ -518,24 +467,16 @@ function editCustomer(index) {
     let newName = prompt("Alter tracked worker profile string:", oldName);
     if (!newName || newName.trim() === "" || newName.trim() === oldName) return;
     let formattedName = newName.trim().replace(/\b\w/g, char => char.toUpperCase());
-    if (knownCustomers.includes(formattedName) && formattedName !== oldName) {
-        alert("Target token value collision identifier detected.");
-        return;
-    }
+    if (knownCustomers.includes(formattedName) && formattedName !== oldName) return alert("Target token value collision identifier detected.");
     knownCustomers[index] = formattedName;
     localStorage.setItem('knownCustomers', JSON.stringify(knownCustomers));
     currentDayLog.forEach(log => { if (log.customer === oldName) log.customer = formattedName; });
     localStorage.setItem('currentDayLog', JSON.stringify(currentDayLog));
     allTimeHistory.forEach(day => {
-        if (day.detailedTimeline) {
-            day.detailedTimeline.forEach(entry => { if (entry.customer === oldName) entry.customer = formattedName; });
-        }
+        if (day.detailedTimeline) { day.detailedTimeline.forEach(entry => { if (entry.customer === oldName) entry.customer = formattedName; }); }
     });
     localStorage.setItem('allTimeHistory', JSON.stringify(allTimeHistory));
-    populateCustomerDatalist();
-    populateMergeDropdowns();
-    renderCustomerManagement();
-    renderLogs();
+    populateCustomerDatalist(); populateMergeDropdowns(); renderCustomerManagement(); renderLogs();
 }
 
 function deleteCustomer(index) {
@@ -543,9 +484,7 @@ function deleteCustomer(index) {
     if (confirm(`Wipe "${targetName}" identity mapping block trace completely?`)) {
         knownCustomers.splice(index, 1);
         localStorage.setItem('knownCustomers', JSON.stringify(knownCustomers));
-        populateCustomerDatalist();
-        populateMergeDropdowns();
-        renderCustomerManagement();
+        populateCustomerDatalist(); populateMergeDropdowns(); renderCustomerManagement();
     }
 }
 
@@ -560,7 +499,6 @@ function closeCustomerModal() { document.getElementById('customer-name-modal').s
 function submitCustomerModal() {
     let rawName = document.getElementById('cust-modal-name-input').value.trim();
     if (rawName === "") return alert("Valid identification matrix required.");
-    
     let finalName = "";
     let matchedName = findClosestCustomerName(rawName);
     if (matchedName) {
@@ -583,11 +521,7 @@ function renderCategoryFilters() {
         let btn = document.createElement('button');
         btn.className = `category-filter-btn ${currentActiveCategory === cat ? 'active' : ''}`;
         btn.innerText = cat;
-        btn.onclick = () => {
-            currentActiveCategory = cat;
-            renderCategoryFilters();
-            renderMenu();
-        };
+        btn.onclick = () => { currentActiveCategory = cat; renderCategoryFilters(); renderMenu(); };
         container.appendChild(btn);
     });
 }
@@ -624,70 +558,38 @@ function addNewItem() {
     if(!name) return;
     customItems.push({ name: name, category: catSelect.value, weight: weight });
     localStorage.setItem('categorizedMenu', JSON.stringify(customItems));
-    nameInput.value = '';
-    weightInput.value = '';
+    nameInput.value = ''; weightInput.value = '';
     alert(`Successfully mapped item allocation array schema instance.`);
-    renderMenu();
-    renderMenuWeightsManagement();
+    renderMenu(); renderMenuWeightsManagement();
 }
 
 function renderCart() {
     const container = document.getElementById('cart-container');
     container.innerHTML = '';
     if (Object.keys(currentCart).length === 0) {
-        container.innerHTML = '<p style="color:#94a3b8; text-align:center; padding-top:45px; margin:0; font-size: 13px;">Queue Array Buffer Allocation Empty</p>';
-        return;
+        container.innerHTML = '<p style="color:#94a3b8; text-align:center; padding-top:45px; margin:0; font-size: 13px;">Queue Array Buffer Allocation Empty</p>'; return;
     }
     for (let item in currentCart) {
-        let div = document.createElement('div');
-        div.className = 'cart-row';
-        div.innerHTML = `
-            <span style="font-weight: 600;">${item}</span>
+        let div = document.createElement('div'); div.className = 'cart-row';
+        div.innerHTML = `<span style="font-weight: 600;">${item}</span>
             <div class="qty-controls">
                 <button class="qty-btn" onclick="changeQty('${item}', -1)">-</button>
                 <span style="font-weight:700; width:24px; text-align:center;">${currentCart[item]}</span>
                 <button class="qty-btn" onclick="changeQty('${item}', 1)">+</button>
-            </div>
-        `;
+            </div>`;
         container.appendChild(div);
     }
-    
-    // Add a clear button just in case user needs to reset
-    let clearBtn = document.createElement('button');
-    clearBtn.className = 'btn-action-small btn-refund';
-    clearBtn.innerText = 'Clear Cart';
-    clearBtn.style.width = '100%';
-    clearBtn.style.marginTop = '10px';
-    clearBtn.onclick = () => {
-        currentCart = {};
-        saveCart();
-        renderCart();
-    };
-    container.appendChild(clearBtn);
 }
 
-function addToCart(item) { 
-    checkAndRunAutoShift(); 
-    currentCart[item] = (currentCart[item] || 0) + 1; 
-    saveCart(); // FIX: Added persistence
-    renderCart(); 
-}
-
-function changeQty(item, amount) { 
-    currentCart[item] += amount; 
-    if (currentCart[item] <= 0) delete currentCart[item]; 
-    saveCart(); // FIX: Added persistence
-    renderCart();
-}
+function addToCart(item) { currentCart[item] = (currentCart[item] || 0) + 1; renderCart(); }
+function changeQty(item, amount) { currentCart[item] += amount; if (currentCart[item] <= 0) delete currentCart[item]; renderCart(); }
 
 function updateLiveBreakdown() {
     const container = document.getElementById('live-total-container');
     if (currentDayLog.length === 0 && currentRefundLog.length === 0) {
-        container.innerHTML = '<p style="color:#94a3b8; text-align:center; margin:0; font-size:13px;">Live operational transaction vectors empty.</p>';
-        return;
+        container.innerHTML = '<p style="color:#94a3b8; text-align:center; margin:0; font-size:13px;">Live operational transaction vectors empty.</p>'; return;
     }
     let grossCount = 0; let refundCount = 0; let itemTotals = {};
-
     currentDayLog.forEach(log => { grossCount += log.qty; itemTotals[log.item] = (itemTotals[log.item] || 0) + log.qty; });
     currentRefundLog.forEach(log => { refundCount += log.qty; });
 
@@ -695,34 +597,21 @@ function updateLiveBreakdown() {
     let html = `
         <div style="font-size:13px; margin-bottom:12px; color:var(--text-muted);">
             <div style="font-size:11px; font-weight:700; color:var(--primary); margin-bottom:6px;">${rangeStr}</div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span>Gross Generated Logs:</span><span style="font-weight:600; color:var(--text-main);">${grossCount + refundCount} Units</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:var(--danger);">
-                <span>Liquidated Void Logs:</span><span style="font-weight:600;">-${refundCount} Units</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; font-weight:800; border-top:1px solid var(--border); padding-top:6px; font-size:14px; color:var(--accent);">
-                <span>Net Verified Shift Inventory:</span><span>${grossCount} Units</span>
-            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Gross Generated Logs:</span><span style="font-weight:600; color:var(--text-main);">${grossCount + refundCount} Units</span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:var(--danger);"><span>Liquidated Void Logs:</span><span style="font-weight:600;">-${refundCount} Units</span></div>
+            <div style="display:flex; justify-content:space-between; font-weight:800; border-top:1px solid var(--border); padding-top:6px; font-size:14px; color:var(--accent);"><span>Net Verified Shift Inventory:</span><span>${grossCount} Units</span></div>
         </div>
         <div style="font-weight:700; font-size:11px; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px; border-bottom:1px solid var(--border); padding-bottom:4px;">Dynamic Mass Metrics Breakdown</div>
-        <table style="width:100%; font-size:13px; color:var(--text-main); border-collapse:collapse;">
-    `;
+        <table style="width:100%; font-size:13px; color:var(--text-main); border-collapse:collapse;">`;
 
     let categoryOrder = ["Rice", "Curry", "Bread", "Others"];
     categoryOrder.forEach(cat => {
         let catHeaderAdded = false;
         for (let item in itemTotals) {
             if (getItemCategory(item) === cat) {
-                if (!catHeaderAdded) {
-                    html += `<tr><td colspan="2" style="font-size:11px; font-weight:800; color:var(--primary); padding:6px 0 2px 0; text-transform:uppercase;">${cat}</td></tr>`;
-                    catHeaderAdded = true;
-                }
+                if (!catHeaderAdded) { html += `<tr><td colspan="2" style="font-size:11px; font-weight:800; color:var(--primary); padding:6px 0 2px 0; text-transform:uppercase;">${cat}</td></tr>`; catHeaderAdded = true; }
                 let calcWeightKg = ((itemTotals[item] * getItemWeight(item)) / 1000).toFixed(2);
-                html += `<tr>
-                    <td style="padding:2px 0 2px 8px; font-weight:500;">${item}</td>
-                    <td style="text-align:right; font-weight:700; color:var(--text-main);">x${itemTotals[item]} <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${calcWeightKg} KG)</span></td>
-                </tr>`;
+                html += `<tr><td style="padding:2px 0 2px 8px; font-weight:500;">${item}</td><td style="text-align:right; font-weight:700; color:var(--text-main);">x${itemTotals[item]} <span style="font-size:11px; color:var(--text-muted); font-weight:normal;">(${calcWeightKg} KG)</span></td></tr>`;
             }
         }
     });
@@ -739,16 +628,11 @@ function renderLogs() {
         let log = currentDayLog[i];
         let customerDisplay = log.customer ? `<div style="font-size:11px; color:var(--primary); font-weight:700;">Worker Name: ${log.customer}</div>` : '';
         let itemWeightKg = ((log.qty * getItemWeight(log.item)) / 1000).toFixed(2);
-        
         let tokenDisplay = `<div style="font-size:11px; font-weight:800; color:var(--danger); margin-bottom:2px;">TOKEN #${log.tokenNum || 'N/A'}</div>`;
 
         let row = `<tr>
-            <td style="color:var(--text-muted); font-weight:500;">${log.time}</td>
-            <td>
-                ${tokenDisplay}
-                <div style="font-weight:600; color:var(--text-main);">${log.item}</div>
-                ${customerDisplay}
-            </td>
+            <td style="color:var(--text-muted); font-weight:500; font-size:11px;">${log.time}</td>
+            <td>${tokenDisplay}<div style="font-weight:600; color:var(--text-main);">${log.item}</div>${customerDisplay}</td>
             <td style="text-align:center; font-weight:700; color:var(--primary);">x${log.qty}<br><span style="font-size:10px; color:var(--text-muted); font-weight:normal;">${itemWeightKg} KG</span></td>
             <td style="text-align:center;"><button class="btn-action-small btn-refund" onclick="refundLogItem(${i})">Void</button></td>
         </tr>`;
@@ -763,7 +647,7 @@ function renderLogs() {
         let rLog = currentRefundLog[j];
         let itemWeightKg = ((rLog.qty * getItemWeight(rLog.item)) / 1000).toFixed(2);
         let row = `<tr>
-            <td style="color:var(--danger); font-weight:500;">${rLog.time}</td>
+            <td style="color:var(--danger); font-weight:500; font-size:11px;">${rLog.time}</td>
             <td style="font-weight:600; color:var(--text-main);">${rLog.customer || 'Walk-In'}</td>
             <td style="font-weight:600; color:var(--text-muted); text-decoration: line-through;">
                 <div style="font-size:11px; font-weight:800; color:var(--text-muted); margin-bottom:2px;">TOKEN #${rLog.tokenNum || 'N/A'}</div>
@@ -801,10 +685,7 @@ function renderLogs() {
             let catHeaderAdded = false;
             for(let itm in day.summary) {
                 if(getItemCategory(itm) === cat) {
-                    if(!catHeaderAdded) {
-                        html += `<tr><td colspan="2" style="font-size:11px; font-weight:700; color:var(--primary); padding-top:6px; text-transform:uppercase;">${cat}</td></tr>`;
-                        catHeaderAdded = true;
-                    }
+                    if(!catHeaderAdded) { html += `<tr><td colspan="2" style="font-size:11px; font-weight:700; color:var(--primary); padding-top:6px; text-transform:uppercase;">${cat}</td></tr>`; catHeaderAdded = true; }
                     let histItemWeight = ((day.summary[itm] * getItemWeight(itm)) / 1000).toFixed(2);
                     html += `<tr><td style="padding:2px 0 2px 6px;">${itm}</td><td style="text-align:right; font-weight:600; color:var(--text-main);">x${day.summary[itm]} <span style="font-size:11px; font-weight:normal; color:var(--text-muted);">(${histItemWeight} KG)</span></td></tr>`;
                 }
@@ -827,8 +708,7 @@ function renderLogs() {
         html += `<div style="display:flex; gap:8px; margin-top:16px;">
                     <button class="print-report-btn" style="margin-top:0; flex:1;" onclick="printSummaryReport(${index})">Summary Report</button>
                     <button class="print-report-btn" style="margin-top:0; flex:1; background:#f0fdf4; color:#166534; border-color:#bbf7d0;" onclick="printHistoricalShiftLogs(${index})">Detailed Logs</button>
-                 </div>
-            </div>`;
+                 </div></div>`;
         histContainer.insertAdjacentHTML('afterbegin', html);
     });
 }
@@ -836,12 +716,11 @@ function renderLogs() {
 function refundLogItem(index) {
     if (!confirm("Execute target data structure mutation termination override script?")) return;
     openPinModal("Verification authorization protocols requested.", "refund", function() {
-        let now = new Date();
-        let refundTime = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        let exactTime = getExactTimestamp();
         let targetItem = currentDayLog[index];
         let refundObject = { 
             tokenNum: targetItem.tokenNum,
-            time: refundTime, 
+            time: exactTime, 
             item: targetItem.item, 
             qty: targetItem.qty, 
             customer: targetItem.customer || "Walk-In" 
@@ -856,47 +735,33 @@ function refundLogItem(index) {
 }
 
 function printSingleRefundToken(refundObj) {
-    const printArea = document.getElementById('print-area');
-    printArea.innerHTML = '';
-    let token = document.createElement('div');
-    token.className = 'pos-token';
+    const printArea = document.getElementById('print-area'); printArea.innerHTML = '';
+    let token = document.createElement('div'); token.className = 'pos-token';
     let weightStr = ((refundObj.qty * getItemWeight(refundObj.item)) / 1000).toFixed(2);
     token.innerHTML = `
         <div class="brand-main">AHMED HANIF RAJPUT</div>
         <div style="font-size: 14px; font-weight: 900; text-align: center; color: #ffffff !important; background-color: #000000 !important; padding: 2px 0; margin: 4px 0;">[ VOID CANCEL ]</div>
         <div style="font-family: Arial, sans-serif !important; font-size: 14px; font-weight: 900; text-align: center; color: #000000 !important; margin: 4px 0;">VOIDED TOKEN: #${refundObj.tokenNum || 'N/A'}</div>
         <div class="pos-divider"></div>
-        <div class="item-container">
-            <div class="pos-item" style="text-decoration: line-through;">${refundObj.item}</div>
-            <div class="pos-qty">TERMINATED: [ ${refundObj.qty} ]</div>
-            <div style="font-weight:900; font-size:14px; margin-top:4px;">-${weightStr} KG</div>
-        </div>
+        <div class="item-container"><div class="pos-item" style="text-decoration: line-through;">${refundObj.item}</div><div class="pos-qty">TERMINATED: [ ${refundObj.qty} ]</div><div style="font-weight:900; font-size:14px; margin-top:4px;">-${weightStr} KG</div></div>
         <div class="pos-divider"></div>
-        <div class="meta-line">DATE: ${getFormattedSystemDate()} &nbsp;&nbsp;&nbsp;&nbsp; TIME: ${refundObj.time}</div>
+        <div class="meta-line">EXACT TIMESTAMP: ${refundObj.time}</div>
         <div style="font-size:12px; font-weight:900; margin-top:4px; text-transform:uppercase; text-align:center;">WORKER NAME: ${refundObj.customer}</div>
     `;
-    printArea.appendChild(token);
-    setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
+    printArea.appendChild(token); setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
 
 function printSummaryReport(index) {
-    const day = allTimeHistory[index];
-    const printArea = document.getElementById('print-area');
-    printArea.innerHTML = '';
+    const day = allTimeHistory[index]; const printArea = document.getElementById('print-area'); printArea.innerHTML = '';
     let topItem = "None"; let maxQty = 0;
     for (let itm in day.summary) { if (day.summary[itm] > maxQty) { maxQty = day.summary[itm]; topItem = itm; } }
-    let reportDiv = document.createElement('div');
-    reportDiv.className = 'pos-report';
-    let itemsHtml = '';
-    let categoryOrder = ["Rice", "Curry", "Bread", "Others"];
+    let reportDiv = document.createElement('div'); reportDiv.className = 'pos-report';
+    let itemsHtml = ''; let categoryOrder = ["Rice", "Curry", "Bread", "Others"];
     categoryOrder.forEach(cat => {
         let catHeaderPrinted = false;
         for (let itm in day.summary) {
             if (getItemCategory(itm) === cat) {
-                if (!catHeaderPrinted) {
-                    itemsHtml += `<div class="report-category-header">${cat}</div>`;
-                    catHeaderPrinted = true;
-                }
+                if (!catHeaderPrinted) { itemsHtml += `<div class="report-category-header">${cat}</div>`; catHeaderPrinted = true; }
                 let wStr = ((day.summary[itm] * getItemWeight(itm)) / 1000).toFixed(2);
                 itemsHtml += `<div class="report-row"><span>&nbsp;&nbsp;${itm.toUpperCase()}</span><span>x${day.summary[itm]} (${wStr} KG)</span></div>`;
             }
@@ -904,35 +769,23 @@ function printSummaryReport(index) {
     });
     let timeRangeTitle = (day.startTime && day.endTime) ? `${day.startTime} TO ${day.endTime}` : 'SHIFT REPORT';
     reportDiv.innerHTML = `
-        <div class="brand-main">AHMED HANIF RAJPUT</div>
-        <div class="report-title">SHIFT ANALYSIS METRICS</div>
-        <div class="meta-line">DATE: ${normalizeToSystemDate(day.date)}</div>
-        <div class="meta-line">SHIFT BLOCK: ${timeRangeTitle}</div>
+        <div class="brand-main">AHMED HANIF RAJPUT</div><div class="report-title">SHIFT ANALYSIS METRICS</div>
+        <div class="meta-line">DATE: ${normalizeToSystemDate(day.date)}</div><div class="meta-line">SHIFT BLOCK: ${timeRangeTitle}</div>
         <div class="pos-divider"></div>
         <div class="report-row"><span>GROSS EMITTED:</span><span>${day.grossItems || day.totalItems} Units</span></div>
         <div class="report-row"><span>VOIDED EXECUTIONS:</span><span>${day.refundedItems || 0} Units</span></div>
         <div class="report-row" style="border-top:2px solid #000000 !important; padding-top:4px;"><span>NET INVENTORY TOTAL:</span><span>${day.totalItems} Units</span></div>
-        <div class="pos-divider-thin"></div>
-        <div style="font-size:11px; font-weight:900; margin-bottom:4px; text-align:center; text-transform:uppercase;">Dynamic Net Mass Quantization</div>
-        ${itemsHtml}
-        <div class="pos-divider-thin" style="margin-top:6px;"></div>
-        <div class="highlight-box">
-            <div style="font-size: 11px; font-weight: 900;">MAX ACCUMULATED VOLUME</div>
-            <div style="font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 2px 0;">${topItem}</div>
-            <div style="font-size: 12px; font-weight: 900;">Quantity: ${maxQty}</div>
-        </div>
+        <div class="pos-divider-thin"></div><div style="font-size:11px; font-weight:900; margin-bottom:4px; text-align:center; text-transform:uppercase;">Dynamic Net Mass Quantization</div>
+        ${itemsHtml}<div class="pos-divider-thin" style="margin-top:6px;"></div>
+        <div class="highlight-box"><div style="font-size: 11px; font-weight: 900;">MAX ACCUMULATED VOLUME</div><div style="font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 2px 0;">${topItem}</div><div style="font-size: 12px; font-weight: 900;">Quantity: ${maxQty}</div></div>
         <div class="pos-divider"></div>
     `;
-    printArea.appendChild(reportDiv);
-    setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
+    printArea.appendChild(reportDiv); setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
 
 function printHistoricalShiftLogs(index) {
-    const day = allTimeHistory[index];
-    if (!day) return;
-    const printArea = document.getElementById('print-area');
-    printArea.innerHTML = '';
-
+    const day = allTimeHistory[index]; if (!day) return;
+    const printArea = document.getElementById('print-area'); printArea.innerHTML = '';
     let timeRangeTitle = (day.startTime && day.endTime) ? `${day.startTime} TO ${day.endTime}` : 'SHIFT LOGS';
     let customerGroups = {};
     if (day.detailedTimeline && day.detailedTimeline.length > 0) {
@@ -942,10 +795,8 @@ function printHistoricalShiftLogs(index) {
             customerGroups[custName].push(t);
         });
     }
-
     let sortedCustomers = Object.keys(customerGroups).sort((a, b) => a.localeCompare(b));
     let logsHtml = '';
-
     if (sortedCustomers.length > 0) {
         sortedCustomers.forEach(cust => {
             logsHtml += `<div style="font-size:13px; font-weight:900; color:#000000 !important; text-align:center; margin-top:8px; border-bottom: 2px solid #000000; padding-bottom: 2px;">WORKER: ${cust}</div>`;
@@ -953,61 +804,38 @@ function printHistoricalShiftLogs(index) {
             custLogs.forEach(t => {
                 let tNumDisplay = t.tokenNum ? `T#${t.tokenNum}` : 'N/A';
                 if (t.type === 'SALE') {
-                    logsHtml += `
-                        <div style="display:flex; justify-content:space-between; font-size:11px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center;">
-                            <div style="flex:1; line-height:1.2;"><span style="font-size:11px;">${tNumDisplay} | ${t.time}</span><br>${t.item}</div>
-                            <div style="text-align:right;">x${t.qty}</div>
-                        </div>`;
+                    logsHtml += `<div style="display:flex; justify-content:space-between; font-size:11px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center;">
+                            <div style="flex:1; line-height:1.2;"><span style="font-size:11px;">${tNumDisplay} | ${t.time}</span><br>${t.item}</div><div style="text-align:right;">x${t.qty}</div></div>`;
                 } else if (t.type === 'REFUND') {
-                    logsHtml += `
-                        <div style="display:flex; justify-content:space-between; font-size:11px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center; text-decoration:line-through;">
-                            <div style="flex:1; line-height:1.2;"><span style="font-size:11px;">${tNumDisplay} | ${t.time}</span><br>[VOID] ${t.item}</div>
-                            <div style="text-align:right;">-x${t.qty}</div>
-                        </div>`;
+                    logsHtml += `<div style="display:flex; justify-content:space-between; font-size:11px !important; font-family: Arial, sans-serif !important; color:#000000 !important; font-weight:900 !important; border-bottom:1px dotted #000000; padding:4px 0; align-items:center; text-decoration:line-through;">
+                            <div style="flex:1; line-height:1.2;"><span style="font-size:11px;">${tNumDisplay} | ${t.time}</span><br>[VOID] ${t.item}</div><div style="text-align:right;">-x${t.qty}</div></div>`;
                 }
             });
         });
-    } else {
-        logsHtml = '<div style="font-size:12px; font-weight:900; color:#000000; text-align:center; margin-bottom:10px;">No logs recorded.</div>';
-    }
+    } else { logsHtml = '<div style="font-size:12px; font-weight:900; color:#000000; text-align:center; margin-bottom:10px;">No logs recorded.</div>'; }
 
-    let reportDiv = document.createElement('div');
-    reportDiv.className = 'pos-report';
+    let reportDiv = document.createElement('div'); reportDiv.className = 'pos-report';
     reportDiv.innerHTML = `
-        <div class="brand-main" style="color:#000000 !important; font-weight:900 !important;">AHMED HANIF RAJPUT</div>
-        <div class="report-title" style="color:#000000 !important; font-weight:900 !important;">WORKER DETAILED LOGS</div>
-        <div class="meta-line" style="color:#000000 !important; font-weight:900 !important;">DATE: ${normalizeToSystemDate(day.date)}</div>
-        <div class="meta-line" style="color:#000000 !important; font-weight:900 !important;">SHIFT: ${timeRangeTitle}</div>
-        <div class="pos-divider"></div>
-        ${logsHtml}
-        <div class="pos-divider" style="margin-top:6px;"></div>
-        <div style="font-size:12px; font-weight:900; color:#000000 !important; text-align:center;">END OF LOGS</div>
+        <div class="brand-main" style="color:#000000 !important; font-weight:900 !important;">AHMED HANIF RAJPUT</div><div class="report-title" style="color:#000000 !important; font-weight:900 !important;">WORKER DETAILED LOGS</div>
+        <div class="meta-line" style="color:#000000 !important; font-weight:900 !important;">DATE: ${normalizeToSystemDate(day.date)}</div><div class="meta-line" style="color:#000000 !important; font-weight:900 !important;">SHIFT: ${timeRangeTitle}</div>
+        <div class="pos-divider"></div>${logsHtml}<div class="pos-divider" style="margin-top:6px;"></div><div style="font-size:12px; font-weight:900; color:#000000 !important; text-align:center;">END OF LOGS</div>
     `;
-    printArea.appendChild(reportDiv);
-    setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
+    printArea.appendChild(reportDiv); setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
 
 function printActiveShiftLogs() {
     if (currentDayLog.length === 0 && currentRefundLog.length === 0) return alert("No active shift log data available to print.");
-    const printArea = document.getElementById('print-area');
-    printArea.innerHTML = '';
+    const printArea = document.getElementById('print-area'); printArea.innerHTML = '';
     let grossCount = 0; let refundCount = 0; let itemTotals = {}; let topItem = "None"; let maxQty = 0;
-
     currentDayLog.forEach(log => { grossCount += log.qty; itemTotals[log.item] = (itemTotals[log.item] || 0) + log.qty; });
     currentRefundLog.forEach(log => { refundCount += log.qty; });
-
     for (let itm in itemTotals) { if (itemTotals[itm] > maxQty) { maxQty = itemTotals[itm]; topItem = itm; } }
-
-    let itemsHtml = '';
-    let categoryOrder = ["Rice", "Curry", "Bread", "Others"];
+    let itemsHtml = ''; let categoryOrder = ["Rice", "Curry", "Bread", "Others"];
     categoryOrder.forEach(cat => {
         let catHeaderPrinted = false;
         for (let itm in itemTotals) {
             if (getItemCategory(itm) === cat) {
-                if (!catHeaderPrinted) {
-                    itemsHtml += `<div class="report-category-header">${cat}</div>`;
-                    catHeaderPrinted = true;
-                }
+                if (!catHeaderPrinted) { itemsHtml += `<div class="report-category-header">${cat}</div>`; catHeaderPrinted = true; }
                 let wStr = ((itemTotals[itm] * getItemWeight(itm)) / 1000).toFixed(2);
                 itemsHtml += `<div class="report-row"><span>&nbsp;&nbsp;${itm.toUpperCase()}</span><span>x${itemTotals[itm]} (${wStr} KG)</span></div>`;
             }
@@ -1015,77 +843,60 @@ function printActiveShiftLogs() {
     });
 
     let timeRangeTitle = shiftStartTime ? `${shiftStartTime} TO LIVE` : 'ACTIVE SHIFT';
-    let finalDate = shiftStartDate || getFormattedSystemDate();
+    let finalDate = shiftStartDate || activeShiftDate;
 
-    let reportDiv = document.createElement('div');
-    reportDiv.className = 'pos-report';
+    let reportDiv = document.createElement('div'); reportDiv.className = 'pos-report';
     reportDiv.innerHTML = `
-        <div class="brand-main">AHMED HANIF RAJPUT</div>
-        <div class="report-title">LIVE SHIFT LOGS REPORT</div>
-        <div class="meta-line">DATE: ${finalDate}</div>
-        <div class="meta-line">SHIFT BLOCK: ${timeRangeTitle}</div>
+        <div class="brand-main">AHMED HANIF RAJPUT</div><div class="report-title">LIVE SHIFT LOGS REPORT</div>
+        <div class="meta-line">DATE: ${finalDate}</div><div class="meta-line">SHIFT BLOCK: ${timeRangeTitle}</div>
         <div class="pos-divider"></div>
         <div class="report-row"><span>GROSS EMITTED:</span><span>${grossCount + refundCount} Units</span></div>
         <div class="report-row"><span>VOIDED EXECUTIONS:</span><span>${refundCount} Units</span></div>
         <div class="report-row" style="border-top:2px solid #000000 !important; padding-top:4px;"><span>NET INVENTORY TOTAL:</span><span>${grossCount} Units</span></div>
-        <div class="pos-divider-thin"></div>
-        <div style="font-size:11px; font-weight:900; margin-bottom:4px; text-align:center; text-transform:uppercase;">Dynamic Net Mass Quantization</div>
-        ${itemsHtml}
-        <div class="pos-divider-thin" style="margin-top:6px;"></div>
-        <div class="highlight-box">
-            <div style="font-size: 11px; font-weight: 900;">MAX LIVE VOLUME</div>
-            <div style="font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 2px 0;">${topItem}</div>
-            <div style="font-size: 12px; font-weight: 900;">Quantity: ${maxQty}</div>
-        </div>
+        <div class="pos-divider-thin"></div><div style="font-size:11px; font-weight:900; margin-bottom:4px; text-align:center; text-transform:uppercase;">Dynamic Net Mass Quantization</div>
+        ${itemsHtml}<div class="pos-divider-thin" style="margin-top:6px;"></div>
+        <div class="highlight-box"><div style="font-size: 11px; font-weight: 900;">MAX LIVE VOLUME</div><div style="font-size: 18px; font-weight: 900; text-transform: uppercase; margin: 2px 0;">${topItem}</div><div style="font-size: 12px; font-weight: 900;">Quantity: ${maxQty}</div></div>
         <div class="pos-divider"></div>
     `;
-    printArea.appendChild(reportDiv);
-    setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
+    printArea.appendChild(reportDiv); setTimeout(() => { window.print(); printArea.innerHTML = ''; }, 50);
 }
 
 function printTokens() {
     if (Object.keys(currentCart).length === 0) return;
+    processAutomatedShiftRollover(); // Double check shift logic right before printing
     openCustomerModal();
 }
 
 function executeTokenPrinting(customerName) {
-    checkAndRunAutoShift(); 
-    
-    const printArea = document.getElementById('print-area');
-    printArea.innerHTML = ''; 
-    let now = new Date();
-    let timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const printArea = document.getElementById('print-area'); printArea.innerHTML = ''; 
+    let exactTime = getExactTimestamp();
+
+    if (!shiftStartTime) {
+        shiftStartTime = exactTime;
+        shiftStartDate = activeShiftDate || getCalculatedShiftDate();
+        localStorage.setItem('shiftStartTime', shiftStartTime);
+        localStorage.setItem('shiftStartDate', shiftStartDate);
+    }
 
     for (let item in currentCart) {
         let qty = currentCart[item];
         globalTokenCounter++;
         localStorage.setItem('globalTokenCounter', globalTokenCounter);
 
-        currentDayLog.push({ tokenNum: globalTokenCounter, time: timeStr, item: item, qty: qty, customer: customerName });
+        currentDayLog.push({ tokenNum: globalTokenCounter, time: exactTime, item: item, qty: qty, customer: customerName });
 
-        let token = document.createElement('div');
-        token.className = 'pos-token';
+        let token = document.createElement('div'); token.className = 'pos-token';
         token.innerHTML = `
             <div class="brand-main">AHMED HANIF RAJPUT</div>
             <div style="font-family: Arial, sans-serif !important; font-size: 12px; font-weight: 900; text-align: center; color: #000000 !important; border: 1px solid #000000; padding: 2px 0; margin: 2px 0;">TOKEN NO: ${globalTokenCounter}</div>
-            <div class="pos-divider"></div>
-            <div class="item-container">
-                <div class="pos-item">${item}</div>
-                <div class="pos-qty">QUANTITY: [ ${qty} ]</div>
-            </div>
-            <div class="pos-divider"></div>
-            <div class="meta-line">DATE: ${shiftStartDate} &nbsp;&nbsp;&nbsp;&nbsp; TIME: ${timeStr}</div>
+            <div class="pos-divider"></div><div class="item-container"><div class="pos-item">${item}</div><div class="pos-qty">QUANTITY: [ ${qty} ]</div></div><div class="pos-divider"></div>
+            <div class="meta-line">TIMESTAMP: ${exactTime}</div>
             <div style="font-size:12px; font-weight:900; margin-top:4px; text-transform:uppercase; text-align:center;">WORKER NAME: ${customerName}</div>
         `;
         printArea.appendChild(token);
     }
     localStorage.setItem('currentDayLog', JSON.stringify(currentDayLog));
-    
-    // Clear cart after printing
-    currentCart = {};
-    saveCart();
-    
-    setTimeout(() => { window.print(); renderCart(); renderLogs(); }, 50);
+    setTimeout(() => { window.print(); currentCart = {}; renderCart(); renderLogs(); }, 50);
 }
 
 function deleteHistoryItem(index) {
@@ -1106,15 +917,52 @@ function clearAllHistory() {
     });
 }
 
+// Rewritten Auto-Saver
+function saveCurrentShiftToHistory() {
+    if (currentDayLog.length === 0 && currentRefundLog.length === 0) return false;
+
+    let netItems = 0; let grossItemsCount = 0; let summary = {}; let detailedTimeline = [];
+
+    currentDayLog.forEach(log => { 
+        netItems += log.qty; grossItemsCount += log.qty;
+        summary[log.item] = (summary[log.item] || 0) + log.qty; 
+        detailedTimeline.push({time: log.time, type: 'SALE', item: log.item, qty: log.qty, customer: log.customer, tokenNum: log.tokenNum});
+    });
+    currentRefundLog.forEach(log => {
+        grossItemsCount += log.qty;
+        detailedTimeline.push({time: log.time, type: 'REFUND', item: log.item, qty: log.qty, customer: log.customer || "Walk-In", tokenNum: log.tokenNum});
+    });
+    
+    detailedTimeline.sort((a, b) => b.time.localeCompare(a.time));
+    
+    let shiftClosingTime = getExactTimestamp();
+    let shiftOpeningTime = shiftStartTime || (currentDayLog.length > 0 ? currentDayLog[0].time : shiftClosingTime);
+    let finalShiftDate = activeShiftDate || shiftStartDate || getFormattedSystemDate();
+    
+    let dayRecord = { 
+        date: finalShiftDate, 
+        startTime: shiftOpeningTime,
+        endTime: shiftClosingTime,
+        totalItems: netItems, 
+        grossItems: grossItemsCount,
+        refundedItems: currentRefundLog.length, 
+        summary: summary, 
+        detailedTimeline: detailedTimeline
+    };
+    allTimeHistory.push(dayRecord);
+    localStorage.setItem('allTimeHistory', JSON.stringify(allTimeHistory));
+    return true;
+}
+
 function getAllConsumptionData() {
     let rows = [];
-    let liveLabel = shiftStartDate || getFormattedSystemDate();
-    currentDayLog.forEach(l => rows.push({ date: liveLabel, shiftId: "LIVE", time: l.time, customer: l.customer || "Walk-In", item: l.item, qty: l.qty, type: "SALE", tokenNum: l.tokenNum }));
-    currentRefundLog.forEach(r => rows.push({ date: liveLabel, shiftId: "LIVE", time: r.time, customer: r.customer || "Walk-In", item: r.item, qty: r.qty, type: "REFUND", tokenNum: r.tokenNum }));
+    let liveLabel = activeShiftDate || shiftStartDate || getFormattedSystemDate();
+    currentDayLog.forEach(l => { rows.push({ date: liveLabel, shiftId: "LIVE", time: l.time, customer: l.customer || "Walk-In", item: l.item, qty: l.qty, type: "SALE", tokenNum: l.tokenNum }); });
+    currentRefundLog.forEach(r => { rows.push({ date: liveLabel, shiftId: "LIVE", time: r.time, customer: r.customer || "Walk-In", item: r.item, qty: r.qty, type: "REFUND", tokenNum: r.tokenNum }); });
     allTimeHistory.forEach((day, idx) => {
         if (day.detailedTimeline) {
             day.detailedTimeline.forEach(t => {
-                let rangeStr = (day.startTime && day.endTime) ? ` [${day.startTime}-${day.endTime}]` : '';
+                let rangeStr = (day.startTime && day.endTime) ? ` [Closed]` : '';
                 rows.push({ date: normalizeToSystemDate(day.date) + rangeStr, shiftId: `SHIFT-${idx}`, time: t.time, customer: t.customer || "Walk-In", item: t.item, qty: t.qty, type: t.type, tokenNum: t.tokenNum });
             });
         }
@@ -1126,20 +974,13 @@ function populateFilterOptions() {
     let data = getAllConsumptionData();
     let customers = new Set(); let items = new Set(); let dates = new Set();
     data.forEach(r => { if(r.customer) customers.add(r.customer); if(r.item) items.add(r.item); if(r.date) dates.add(r.date); });
-    let custSel = document.getElementById('filter-cust');
-    let itemSel = document.getElementById('filter-item');
-    let dateSel = document.getElementById('filter-date');
-    custSel.innerHTML = '<option value="ALL">-- All Registry Profiles --</option>';
-    itemSel.innerHTML = '<option value="ALL">-- All Menu Labels --</option>';
-    dateSel.innerHTML = '<option value="ALL">-- All Epoch Shifts --</option>';
-    customers.forEach(c => custSel.innerHTML += `<option value="${c}">${c}</option>`);
-    items.forEach(i => itemSel.innerHTML += `<option value="${i}">${i}</option>`);
-    dates.forEach(d => dateSel.innerHTML += `<option value="${d}">${d}</option>`);
+    let custSel = document.getElementById('filter-cust'); let itemSel = document.getElementById('filter-item'); let dateSel = document.getElementById('filter-date');
+    custSel.innerHTML = '<option value="ALL">-- All Registry Profiles --</option>'; itemSel.innerHTML = '<option value="ALL">-- All Menu Labels --</option>'; dateSel.innerHTML = '<option value="ALL">-- All Epoch Shifts --</option>';
+    customers.forEach(c => custSel.innerHTML += `<option value="${c}">${c}</option>`); items.forEach(i => itemSel.innerHTML += `<option value="${i}">${i}</option>`); dates.forEach(d => dateSel.innerHTML += `<option value="${d}">${d}</option>`);
 }
 
 function populateShiftSelectorOptions() {
-    let selector = document.getElementById('rule-shift-selector');
-    let currentSelection = selector.value;
+    let selector = document.getElementById('rule-shift-selector'); let currentSelection = selector.value;
     let liveRange = shiftStartTime ? ` (Opened: ${shiftStartTime})` : ' (Matrix structural space null)';
     selector.innerHTML = `<option value="LIVE">Active Operational Runtime Engine Segment${liveRange}</option>`;
     allTimeHistory.forEach((day, idx) => {
@@ -1147,61 +988,47 @@ function populateShiftSelectorOptions() {
         let timeStr = (day.startTime && day.endTime) ? ` (${day.startTime} to ${day.endTime})` : '';
         selector.innerHTML += `<option value="SHIFT-${idx}">Ledger Segment: ${label}${timeStr}</option>`;
     });
-    if (currentSelection && selector.querySelector(`option[value="${currentSelection}"]`)) selector.value = currentSelection;
-    else selector.value = "LIVE";
+    if (currentSelection && selector.querySelector(`option[value="${currentSelection}"]`)) { selector.value = currentSelection; } else { selector.value = "LIVE"; }
 }
 
 function calculateHighConsumptionMatrix(data) {
     let selectedShift = document.getElementById('rule-shift-selector').value;
-    let riceLimit = parseInt(document.getElementById('rule-rice-limit').value) || null;
-    let curryLimit = parseInt(document.getElementById('rule-curry-limit').value) || null;
-    let breadLimit = parseInt(document.getElementById('rule-bread-limit').value) || null;
+    let riceVal = document.getElementById('rule-rice-limit').value.trim();
+    let curryVal = document.getElementById('rule-curry-limit').value.trim();
+    let breadVal = document.getElementById('rule-bread-limit').value.trim();
+
+    let riceLimit = riceVal !== "" ? parseInt(riceVal) : null; let curryLimit = curryVal !== "" ? parseInt(curryVal) : null; let breadLimit = breadVal !== "" ? parseInt(breadVal) : null;
     let aggregation = {};
     
     data.forEach(r => {
         if (r.shiftId !== selectedShift || r.type !== 'SALE' || r.customer === 'Walk-In') return;
-        let cat = getItemCategory(r.item);
-        let key = `${r.customer}||${r.item}||${cat}`;
+        let cat = getItemCategory(r.item); let key = `${r.customer}||${r.item}||${cat}`;
         aggregation[key] = (aggregation[key] || 0) + r.qty;
     });
     
-    let tbody = document.getElementById('high-consumption-tbody');
-    tbody.innerHTML = '';
-    let anomaliesFound = false;
-
+    let tbody = document.getElementById('high-consumption-tbody'); tbody.innerHTML = ''; let anomaliesFound = false;
     for (let key in aggregation) {
-        let [customer, item, category] = key.split('||');
-        let totalQty = aggregation[key];
-        let shouldFlag = false; let alertMsg = "";
-        let calculatedW = ((totalQty * getItemWeight(item)) / 1000).toFixed(2);
+        let [customer, item, category] = key.split('||'); let totalQty = aggregation[key];
+        let shouldFlag = false; let alertMsg = ""; let calculatedW = ((totalQty * getItemWeight(item)) / 1000).toFixed(2);
 
-        if (category === "Rice" && riceLimit !== null && totalQty >= riceLimit) { shouldFlag = true; alertMsg = `Rice Limit Breach Alert (≥ ${riceLimit} Units)`; }
-        else if (category === "Curry" && curryLimit !== null && totalQty >= curryLimit) { shouldFlag = true; alertMsg = `Curry Threshold Flagged Trigger (≥ ${curryLimit} Orders)`; }
+        if (category === "Rice" && riceLimit !== null && totalQty >= riceLimit) { shouldFlag = true; alertMsg = `Rice Limit Breach Alert (≥ ${riceLimit} Units)`; } 
+        else if (category === "Curry" && curryLimit !== null && totalQty >= curryLimit) { shouldFlag = true; alertMsg = `Curry Threshold Flagged Trigger (≥ ${curryLimit} Orders)`; } 
         else if (category === "Bread" && breadLimit !== null && totalQty >= breadLimit) { shouldFlag = true; alertMsg = `Bulk Unit Bread Overflow Logic (≥ ${breadLimit} Pieces)`; }
         
         if (shouldFlag) {
             anomaliesFound = true;
-            tbody.insertAdjacentHTML('beforeend', `<tr>
-                <td style="font-weight:700; color:var(--text-main);">${customer}</td>
-                <td>${item}</td>
-                <td style="font-weight:600; color:var(--primary);">${category}</td>
-                <td style="text-align:right; font-weight:800; color:var(--danger);">x${totalQty}</td>
-                <td style="text-align:right; font-weight:800;">${calculatedW} KG</td>
-                <td><span class="flag-pill flag-high">⚠️ ${alertMsg}</span></td>
-            </tr>`);
+            let tr = `<tr><td style="font-weight:700; color:var(--text-main);">${customer}</td><td>${item}</td><td style="font-weight:600; color:var(--primary);">${category}</td>
+                <td style="text-align:right; font-weight:800; color:var(--danger);">x${totalQty}</td><td style="text-align:right; font-weight:800;">${calculatedW} KG</td><td><span class="flag-pill flag-high">⚠️ ${alertMsg}</span></td></tr>`;
+            tbody.insertAdjacentHTML('beforeend', tr);
         }
     }
     if (!anomaliesFound) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:16px; font-size:13px;">No critical boundary tracking triggers flagged. System context baseline stable.</td></tr>`;
 }
 
 function renderConsumptionReport() {
-    let data = getAllConsumptionData();
-    calculateHighConsumptionMatrix(data);
-    let fCust = document.getElementById('filter-cust').value;
-    let fItem = document.getElementById('filter-item').value;
-    let fDate = document.getElementById('filter-date').value;
-    let tbody = document.getElementById('consumption-report-tbody');
-    tbody.innerHTML = '';
+    let data = getAllConsumptionData(); calculateHighConsumptionMatrix(data);
+    let fCust = document.getElementById('filter-cust').value; let fItem = document.getElementById('filter-item').value; let fDate = document.getElementById('filter-date').value;
+    let tbody = document.getElementById('consumption-report-tbody'); tbody.innerHTML = '';
 
     let filtered = data.filter(r => {
         if (fCust !== "ALL" && r.customer !== fCust) return false;
@@ -1220,55 +1047,36 @@ function renderConsumptionReport() {
         let tokenString = r.tokenNum ? ` [T-#${r.tokenNum}]` : '';
         let dateTimeDisplay = `${r.date}, ${r.time || 'N/A'}${tokenString}`;
 
-        tbody.insertAdjacentHTML('beforeend', `<tr>
-            <td style="font-weight: 500; color: var(--text-muted);">${dateTimeDisplay}</td>
-            <td style="font-weight:600;">${r.customer}</td>
-            <td>${r.item}</td>
-            <td style="${qtyStyle}">${displayQty}</td>
-            <td style="text-align:right; font-weight:600;">${displayWeight} KG</td>
-            <td><span style="${statusStyle}">${r.type}</span></td>
-        </tr>`);
+        let tr = `<tr><td style="font-weight: 500; color: var(--text-muted); font-size:11px;">${dateTimeDisplay}</td><td style="font-weight:600;">${r.customer}</td><td>${r.item}</td>
+            <td style="${qtyStyle}">${displayQty}</td><td style="text-align:right; font-weight:600;">${displayWeight} KG</td><td><span style="${statusStyle}">${r.type}</span></td></tr>`;
+        tbody.insertAdjacentHTML('beforeend', tr);
     });
 }
 
 function clearConsumptionFilters() {
-    document.getElementById('filter-cust').value = "ALL";
-    document.getElementById('filter-item').value = "ALL";
-    document.getElementById('filter-date').value = "ALL";
+    document.getElementById('filter-cust').value = "ALL"; document.getElementById('filter-item').value = "ALL"; document.getElementById('filter-date').value = "ALL";
     renderConsumptionReport();
 }
 
 function exportConsumptionToCSV() {
-    let data = getAllConsumptionData();
-    if(data.length === 0) return alert("Structural target storage layer empty.");
+    let data = getAllConsumptionData(); if(data.length === 0) return alert("Structural target storage layer empty.");
     let csvContent = "data:text/csv;charset=utf-8,Timestamp Block Node,Token Reference,Profile Mapping ID,Menu Label,Quantity Scalar,Retroactive Weight Metric(KG),State Vector\n";
     data.forEach(r => {
-        let val = r.type === 'REFUND' ? `-${r.qty}` : r.qty;
-        let wVal = ((r.qty * getItemWeight(r.item)) / 1000).toFixed(2);
+        let val = r.type === 'REFUND' ? `-${r.qty}` : r.qty; let wVal = ((r.qty * getItemWeight(r.item)) / 1000).toFixed(2);
         let wStr = r.type === 'REFUND' ? `-${wVal}` : wVal;
         csvContent += `"${r.date}, ${r.time || 'N/A'}", "${r.tokenNum || 'N/A'}", "${r.customer}","${r.item}",${val},${wStr},"${r.type}"\n`;
     });
-    let encodedUri = encodeURI(csvContent);
-    let link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    let encodedUri = encodeURI(csvContent); let link = document.createElement("a"); link.setAttribute("href", encodedUri);
     link.setAttribute("download", `Shift_Matrix_Report_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
-
-// Initial Boot Cycle Executions
-window.onload = function() {
-    checkAndRunAutoShift(); 
-    renderCategoryFilters();
-    renderMenu();
-    renderLogs();
-    renderCart(); // Added
-    populateCustomerDatalist();
-    
-    setInterval(checkAndRunAutoShift, 60000); 
-};
 
 document.getElementById('modal-pin-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') submitPinModal(); });
 document.getElementById('cust-modal-name-input').addEventListener('keypress', function(e) { if (e.key === 'Enter') submitCustomerModal(); });
 document.getElementById('new-manual-customer').addEventListener('keypress', function(e) { if (e.key === 'Enter') addCustomerManually(); });
+
+processAutomatedShiftRollover(); // Check shifts immediately on load
+renderCategoryFilters();
+renderMenu();
+renderLogs();
+populateCustomerDatalist();
