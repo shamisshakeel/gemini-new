@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AHRP - Smart POS Engine</title>
+    <title>Ahmed Hanif Rajput Pakwan - Premium POS & Analytics</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#4f46e5">
-    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -15,6 +13,7 @@
 <body>
 
 <div id="print-area"></div>
+<div id="offline-banner" style="display:none; background:var(--danger); color:white; text-align:center; padding:8px; font-weight:bold; font-size:13px;">⚠️ SYSTEM RUNNING OFFLINE - DATA IS SAVED LOCALLY</div>
 
 <div class="modal-overlay" id="secure-pin-modal">
     <div class="modal-box">
@@ -42,327 +41,279 @@
     </div>
 </div>
 
-<div class="app-layout">
-    
-    <aside class="sidebar">
-        <div class="brand-section">
-            <h2>AHRP</h2>
-            <p>Smart POS Engine</p>
-        </div>
-        
-        <div class="smart-shift-badge">
-            <span class="status-dot-active"></span>
-            <span id="shift-display-status">Engine Loading...</span>
-        </div>
+<div class="top-navbar">
+    <h2>Ahmed Hanif Rajput Pakwan</h2>
+    <div class="nav-buttons">
+        <span style="font-size:12px; font-weight:bold; color:var(--text-muted); background:#f1f5f9; padding:8px 12px; border-radius:8px; border:1px solid var(--border);">
+            SHIFT AUTOMATION ACTIVE (10 AM ROLLED OVER)
+        </span>
+    </div>
+</div>
 
-        <nav class="sidebar-nav">
-            <button class="tab-btn active" id="btn-pos-tab" onclick="switchView('pos-tab')">🛒 Counter POS</button>
-            <button class="tab-btn" id="btn-logs-tab" onclick="switchView('logs-tab')">⚡ Live Shift Logs</button>
-            <button class="tab-btn" id="btn-history-tab" onclick="switchView('history-tab')">📦 Saved History</button>
-            <button class="tab-btn" id="btn-customers-tab" onclick="attemptOpenCustomers()">⚙️ Database Control</button>
-            <button class="tab-btn" id="btn-consumption-tab" onclick="attemptOpenConsumption()">📊 Consumption Matrix</button>
-            <button class="tab-btn" id="btn-audit-tab" onclick="attemptOpenAudit()">🛡️ Security Audit</button>
-        </nav>
-    </aside>
+<div class="tabs-nav">
+    <button class="tab-btn active" id="btn-pos-tab" onclick="switchView('pos-tab')">Counter POS</button>
+    <button class="tab-btn" id="btn-logs-tab" onclick="switchView('logs-tab')">Live Shift Logs</button>
+    <button class="tab-btn" id="btn-history-tab" onclick="switchView('history-tab')">Saved History</button>
+    <button class="tab-btn" id="btn-customers-tab" onclick="attemptOpenCustomers()">Database & Weights Control</button>
+    <button class="tab-btn" id="btn-consumption-tab" onclick="attemptOpenConsumption()">Consumption Report Matrix</button>
+    <button class="tab-btn" id="btn-audit-tab" onclick="attemptOpenAudit()">Security Audit Log</button>
+</div>
 
-    <main class="main-content">
-        
-        <div class="tab-content active" id="pos-tab">
-            <div class="header-banner">
-                <h1>Terminal Dashboard</h1>
-                <p>Manage live orders and queue tokens.</p>
-            </div>
-            <div class="dashboard pos-grid">
-                <div class="main-panel pos-menu-panel">
-                    <div class="section-title margin-top-0">Filter Category Blocks</div>
-                    <div class="category-nav" id="category-filter-container"></div>
-                    <div class="menu-grid" id="items-grid"></div>
-                </div>
-
-                <div class="side-panel pos-cart-panel">
-                    <div class="section-title margin-top-0">Live Basket Queue</div>
-                    <div class="cart-box" id="cart-container"></div>
-                    <button class="btn btn-success margin-top-16 shadow-btn" onclick="printTokens()">Print Tokens</button>
-                </div>
-            </div>
+<div class="tab-content active" id="pos-tab">
+    <div class="dashboard">
+        <div class="main-panel">
+            <div class="section-title margin-top-0">Filter Category Blocks</div>
+            <div class="category-nav" id="category-filter-container"></div>
+            <div class="menu-grid" id="items-grid"></div>
         </div>
 
-        <div class="tab-content" id="logs-tab">
-            <div class="header-banner">
-                <h1>Live Shift Logs</h1>
-                <p>Real-time operational records and terminal voids.</p>
-            </div>
-            <div class="dashboard logs-grid">
-                <div class="main-panel">
-                    <div class="grid-layout-1col">
-                        <div>
-                            <div class="section-title">Today's Printed Active Logs</div>
-                            <table class="styled-table">
-                                <thead>
-                                    <tr>
-                                        <th class="w-20">Time Block</th>
-                                        <th>Item Label Mapped Profile</th>
-                                        <th class="w-20 text-center">Quantity Grid</th>
-                                        <th class="w-20 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="live-log"></tbody>
-                            </table>
-                        </div>
-                        
-                        <div style="margin-top: 24px;">
-                            <div class="section-title text-danger">Today's Terminated Refund Logs</div>
-                            <table class="styled-table table-danger">
-                                <thead>
-                                    <tr>
-                                        <th class="w-20">Refund Window</th>
-                                        <th class="w-25">Worker Name</th>
-                                        <th>Item Label Title</th>
-                                        <th class="w-20 text-center">Quantity</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="refund-log"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="side-panel">
-                    <div class="section-title margin-top-0">Operational Statistics</div>
-                    <div class="live-total-box" id="live-total-container"></div>
-                    <button class="btn btn-primary shadow-btn margin-top-16" style="width: 100%;" onclick="printActiveShiftLogs()">Print Shift Report</button>
-                </div>
-            </div>
+        <div class="side-panel">
+            <div class="section-title margin-top-0">Live Basket Queue</div>
+            <div class="cart-box" id="cart-container"></div>
+            <button class="btn btn-success margin-top-16" onclick="printTokens()">Print Shift Queue Tokens</button>
         </div>
+    </div>
+</div>
 
-        <div class="tab-content" id="history-tab">
-            <div class="header-banner">
-                <h1>Structural Shift History</h1>
-                <p>Archived ledger vaults from previous operating days.</p>
-            </div>
-            <div class="archive-dashboard">
-                <div class="main-panel">
-                    <div class="panel-header-row">
-                        <div class="section-title margin-0">Historical Ledger Vault</div>
-                        <button class="btn btn-danger font-size-13" onclick="clearAllHistory()">Wipe Vault Logs</button>
-                    </div>
-                    <div class="history-grid-layout" id="history-container"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="tab-content" id="customers-tab">
-            <div class="header-banner">
-                <h1>Database & Weights Control</h1>
-                <p>Manage system memory, custom items, and worker identities.</p>
-            </div>
-            <div class="archive-dashboard two-col">
-                <div class="main-panel">
-                    <div class="section-title margin-top-0">Menu Parameter Controller</div>
-                    <div class="add-item-box">
-                        <div class="box-subtitle">Inject Custom Item</div>
-                        <div class="flex-column gap-12">
-                            <input type="text" id="new-item-name" class="input-field" placeholder="Item Name label">
-                            <select id="new-item-category" class="select-field">
-                                <option value="Rice">Rice</option>
-                                <option value="Curry">Curry</option>
-                                <option value="Bread">Bread</option>
-                                <option value="Others">Others</option>
-                            </select>
-                            <input type="number" id="new-item-weight" class="input-field" placeholder="Unit Weight Scale (Grams)" min="0">
-                            <button class="btn btn-primary" onclick="addNewItem()">Add Item Configuration</button>
-                        </div>
-                    </div>
-                    <div id="menu-weights-management-container"></div>
-                    
-                    <div class="section-title" style="margin-top: 32px;">Core Memory Backup</div>
-                    <div class="add-item-box box-green">
-                        <div class="box-subtitle">Cloud Migration Engine</div>
-                        <div class="flex-column gap-12">
-                            <button class="btn btn-success shadow-btn" onclick="exportSystemBackupJSON()">Download Complete Backup (.JSON)</button>
-                            <div class="divider-dashed"></div>
-                            <label class="label-small">Restore Database Configuration File</label>
-                            <input type="file" id="import-backup-file" accept=".json" class="input-field bg-white">
-                            <button class="btn btn-danger" onclick="importSystemBackupJSON()">Upload & Override Memory</button>
-                        </div>
-                    </div>
+<div class="tab-content" id="logs-tab">
+    <div class="dashboard">
+        <div class="main-panel">
+            <div class="grid-layout-1col">
+                <div>
+                    <div class="section-title">Today's Printed Active Logs</div>
+                    <table class="styled-table">
+                        <thead>
+                            <tr>
+                                <th class="w-20">Exact Timestamp</th>
+                                <th>Item Label Mapped Profile</th>
+                                <th class="w-20 text-center">Quantity Grid</th>
+                                <th class="w-20 text-center">Action Interface</th>
+                            </tr>
+                        </thead>
+                        <tbody id="live-log"></tbody>
+                    </table>
                 </div>
                 
-                <div class="main-panel">
-                    <div class="section-title margin-top-0">Worker Directory</div>
-                    <div class="flex-row gap-10 margin-bottom-12">
-                        <input type="text" id="new-manual-customer" class="input-field" placeholder="Create worker entry...">
-                        <button class="btn btn-primary whitespace-nowrap" onclick="addCustomerManually()">Add Profile</button>
-                    </div>
-
-                    <div class="add-item-box box-gray">
-                        <div class="box-subtitle text-primary">Merge Redundant Profiles</div>
-                        <div class="flex-row gap-10 margin-bottom-12">
-                            <select id="merge-source-select" class="select-field"><option value="">-- Duplicate Profile --</option></select>
-                            <select id="merge-target-select" class="select-field"><option value="">-- Master Profile --</option></select>
-                        </div>
-                        <button class="btn btn-primary full-width" onclick="executeCustomerMerge()">Execute Record Merge</button>
-                    </div>
-
-                    <div class="margin-bottom-12">
-                        <input type="text" id="customer-search-input" class="input-field" placeholder="🔍 Live Search Directories..." oninput="handleCustomerSearchFilter()">
-                    </div>
-
-                    <div id="customer-management-list"></div>
+                <div>
+                    <div class="section-title">Today's Terminated Refund Logs</div>
+                    <table class="styled-table">
+                        <thead>
+                            <tr>
+                                <th class="w-20">Refund Window</th>
+                                <th class="w-25">Worker Name</th>
+                                <th>Item Label Title</th>
+                                <th class="w-20 text-center">Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="refund-log"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <div class="tab-content" id="consumption-tab">
-            <div class="header-banner">
-                <h1>Consumption Report Matrix</h1>
-                <p>Analyze shift targets and anomalous volumetric data.</p>
+        <div class="side-panel">
+            <div class="section-title margin-top-0">Live Operational Breakdown Statistics</div>
+            <div class="live-total-box" id="live-total-container" style="margin-bottom: 12px;"></div>
+            <button class="print-report-btn" onclick="printActiveShiftLogs()" style="margin-top: 0; width: 100%;">Print Live Shift Logs Report</button>
+        </div>
+    </div>
+</div>
+
+<div class="tab-content" id="history-tab">
+    <div class="archive-dashboard">
+        <div class="main-panel">
+            <div class="panel-header-row">
+                <div class="section-title margin-0">Structural Shift History Ledger Vault</div>
+                <button class="btn btn-danger font-size-13" onclick="clearAllHistory()">Wipe Historic Vault Logs</button>
             </div>
-            <div class="archive-dashboard">
-                <div class="main-panel box-bordered-primary">
-                    <div class="section-title text-primary">⚙️ Alert Trigger Boundaries</div>
-                    <div class="rules-panel">
-                        <div class="rule-group">
-                            <label>Segment Scope</label>
-                            <select id="rule-shift-selector" class="select-field" onchange="renderConsumptionReport()"></select>
-                        </div>
-                        <div class="rule-group">
-                            <label>Rice Upper Limit</label>
-                            <input type="number" id="rule-rice-limit" class="input-field" value="3" min="1" oninput="renderConsumptionReport()">
-                        </div>
-                        <div class="rule-group">
-                            <label>Curry Upper Limit</label>
-                            <input type="number" id="rule-curry-limit" class="input-field" value="2" min="1" oninput="renderConsumptionReport()">
-                        </div>
-                        <div class="rule-group">
-                            <label>Bread Upper Limit</label>
-                            <input type="number" id="rule-bread-limit" class="input-field" value="5" min="1" oninput="renderConsumptionReport()">
-                        </div>
-                    </div>
+            <div class="history-grid-layout" id="history-container"></div>
+        </div>
+    </div>
+</div>
+
+<div class="tab-content" id="customers-tab">
+    <div class="archive-dashboard two-col">
+        <div class="main-panel">
+            <div class="section-title margin-top-0">Menu Weight Parameter Controller</div>
+            <div class="add-item-box">
+                <div class="box-subtitle">Inject Custom Item Matrix Card</div>
+                <div class="flex-column gap-12">
+                    <input type="text" id="new-item-name" class="input-field" placeholder="Item Name label">
+                    <select id="new-item-category" class="select-field">
+                        <option value="Rice">Rice</option>
+                        <option value="Curry">Curry</option>
+                        <option value="Bread">Bread</option>
+                        <option value="Others">Others</option>
+                    </select>
+                    <input type="number" id="new-item-weight" class="input-field" placeholder="Unit Weight Scale (Grams)" min="0">
+                    <button class="btn btn-primary" onclick="addNewItem()">Add Item Configuration</button>
                 </div>
-
-                <div class="main-panel box-bordered-danger">
-                    <div class="section-title text-danger">⚠️ Anomalous Target Analysis</div>
-                    <div class="excel-table-container">
-                        <table class="excel-table table-danger">
-                            <thead>
-                                <tr>
-                                    <th>Account Reference</th>
-                                    <th>Menu Item</th>
-                                    <th>Category Block</th>
-                                    <th class="w-140 text-right">Accumulated</th>
-                                    <th class="w-140 text-right">Mass (KG)</th>
-                                    <th class="w-260">Flag Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="high-consumption-tbody"></tbody>
-                        </table>
-                    </div>
+            </div>
+            <div id="menu-weights-management-container"></div>
+            
+            <div class="section-title" style="margin-top: 32px;">Core Ledger Memory Maintenance Backup</div>
+            <div class="add-item-box" style="background: #f0fdf4; border-color: #bbf7d0;">
+                <div class="box-subtitle" style="color: #166534;">System Migration Cloud Engine</div>
+                <div class="flex-column gap-12">
+                    <button class="btn btn-primary btn-csv-green" style="width: 100%;" onclick="exportSystemBackupJSON()">Download Complete System Database Backup (.JSON)</button>
+                    <div style="border-top: 1px dashed #cbd5e1; margin: 8px 0;"></div>
+                    <label style="font-size: 12px; font-weight: 700; color: #334155;">Restore Database Configuration File</label>
+                    <input type="file" id="import-backup-file" accept=".json" class="input-field" style="background: white;">
+                    <button class="btn btn-danger" style="width: 100%; background: #fee2e2;" onclick="importSystemBackupJSON()">Upload & Override System Database Memory</button>
                 </div>
+            </div>
+        </div>
+        
+        <div class="main-panel">
+            <div class="section-title margin-top-0">Worker Directory Controller</div>
+            
+            <div class="flex-row gap-10 margin-bottom-12">
+                <input type="text" id="new-manual-customer" class="input-field" placeholder="Create worker registry account entry...">
+                <button class="btn btn-primary whitespace-nowrap" onclick="addCustomerManually()">Add Profile</button>
+            </div>
 
-                <div class="main-panel">
-                    <div class="panel-header-row margin-bottom-12">
-                        <div class="section-title margin-0">Shift Matrix Ledger</div>
-                        <button class="btn btn-success" onclick="exportConsumptionToCSV()">Export Data (.CSV)</button>
-                    </div>
+            <div class="add-item-box" style="background: #f8fafc; margin-bottom: 20px; border: 1px solid var(--border);">
+                <div class="box-subtitle" style="color: var(--primary);">Merge Redundant Profile Ledger Accounts</div>
+                <div class="flex-row gap-10" style="margin-bottom: 8px;">
+                    <select id="merge-source-select" class="select-field" style="font-size: 13px;"><option value="">-- Select Duplicate Profile (To Merge From) --</option></select>
+                    <select id="merge-target-select" class="select-field" style="font-size: 13px;"><option value="">-- Select Target Primary Master Profile --</option></select>
+                </div>
+                <button class="btn btn-primary btn-half" style="width: 100%; font-size: 13px;" onclick="executeCustomerMerge()">Execute Record Merge Integration</button>
+            </div>
 
-                    <div class="filter-panel">
-                        <div class="filter-group">
-                            <label>Worker Target</label>
-                            <select id="filter-cust" class="select-field" onchange="renderConsumptionReport()"></select>
-                        </div>
-                        <div class="filter-group">
-                            <label>Menu Label</label>
-                            <select id="filter-item" class="select-field" onchange="renderConsumptionReport()"></select>
-                        </div>
-                        <div class="filter-group">
-                            <label>Chronological</label>
-                            <select id="filter-date" class="select-field" onchange="renderConsumptionReport()"></select>
-                        </div>
-                        <button class="btn btn-neutral" onclick="clearConsumptionFilters()">Reset</button>
-                    </div>
+            <div class="margin-bottom-12">
+                <input type="text" id="customer-search-input" class="input-field" placeholder="🔍 Live Search Directories..." oninput="handleCustomerSearchFilter()">
+            </div>
 
-                    <div class="excel-table-container">
-                        <table class="excel-table">
-                            <thead>
-                                <tr>
-                                    <th class="w-280">Timestamp Node</th>
-                                    <th>Profile Reference</th>
-                                    <th>Menu Item</th>
-                                    <th class="w-120 text-right">Quantity</th>
-                                    <th class="w-150 text-right">Weight (KG)</th>
-                                    <th class="w-120">Flow State</th>
-                                </tr>
-                            </thead>
-                            <tbody id="consumption-report-tbody"></tbody>
-                        </table>
-                    </div>
+            <div id="customer-management-list"></div>
+        </div>
+    </div>
+</div>
+
+<div class="tab-content" id="consumption-tab">
+    <div class="archive-dashboard">
+        <div class="main-panel threshold-panel-border">
+            <div class="section-title menu-header-title text-primary">⚙️ High-Consumption Alert Trigger Matrix Boundaries</div>
+            <div class="rules-panel">
+                <div class="rule-group">
+                    <label>Shift Target Segment Scope</label>
+                    <select id="rule-shift-selector" class="select-field important-selector" onchange="renderConsumptionReport()"></select>
+                </div>
+                <div class="rule-group">
+                    <label>Rice Upper Limit Flag Boundary (Orders)</label>
+                    <input type="number" id="rule-rice-limit" class="input-field" value="3" min="1" oninput="renderConsumptionReport()">
+                </div>
+                <div class="rule-group">
+                    <label>Curry Upper Limit Flag Boundary (Orders)</label>
+                    <input type="number" id="rule-curry-limit" class="input-field" value="2" min="1" oninput="renderConsumptionReport()">
+                </div>
+                <div class="rule-group">
+                    <label>Bread Upper Limit Flag Boundary (Pieces)</label>
+                    <input type="number" id="rule-bread-limit" class="input-field" value="5" min="1" oninput="renderConsumptionReport()">
                 </div>
             </div>
         </div>
 
-        <div class="tab-content" id="audit-tab">
-            <div class="header-banner">
-                <h1>Security Audit Log</h1>
-                <p>Track sensitive system actions and clearance verifications.</p>
-            </div>
-            <div class="archive-dashboard">
-                <div class="main-panel">
-                    <div class="panel-header-row">
-                        <div class="section-title margin-0">Audit Log Ledger</div>
-                        <button class="btn btn-danger font-size-13" onclick="clearAuditLog()">Purge Records</button>
-                    </div>
-                    
-                    <div class="filter-panel margin-top-16 margin-bottom-12">
-                        <div class="filter-group">
-                            <label>Filter Event Type</label>
-                            <select id="audit-filter-type" class="select-field" onchange="renderAuditLog()">
-                                <option value="ALL">-- All Event Types --</option>
-                                <option value="SHIFT_CONTROL">Shift Control Actions</option>
-                                <option value="PASSWORD_ATTEMPT">Password Attempts</option>
-                                <option value="SETTINGS_CHANGED">Settings & Data Changes</option>
-                                <option value="CUSTOMER_MODIFIED">Worker Profile Changes</option>
-                                <option value="DATA_RESTORED">Data Restoration Events</option>
-                                <option value="HISTORY_CLEARED">History Clear Events</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="excel-table-container">
-                        <table class="excel-table">
-                            <thead>
-                                <tr>
-                                    <th class="w-200">Timestamp Node</th>
-                                    <th class="w-150">Event Category</th>
-                                    <th>Event Description Details</th>
-                                    <th class="w-100">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="audit-log-tbody"></tbody>
-                        </table>
-                    </div>
-                </div>
+        <div class="main-panel">
+            <div class="section-title menu-header-title text-danger">⚠️ Anomalous Volumetric Target Analysis Monitor</div>
+            <div class="excel-table-container">
+                <table class="excel-table anomaly-table-border">
+                    <thead>
+                        <tr class="header-danger-bg">
+                            <th>Account Holder Reference</th>
+                            <th>Menu Item Metric</th>
+                            <th>Functional Category Block</th>
+                            <th class="w-140 text-right">Accumulated Sum</th>
+                            <th class="w-140 text-right">Dynamic Mass (KG)</th>
+                            <th class="w-260">Trigger Logic Flag Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="high-consumption-tbody"></tbody>
+                </table>
             </div>
         </div>
 
-    </main>
+        <div class="main-panel">
+            <div class="panel-header-row margin-bottom-12">
+                <div class="section-title margin-0">Shift Consumption Stream Matrix Ledger Grid</div>
+                <button class="btn btn-primary btn-csv-green" onclick="exportConsumptionToCSV()">Export Data Sheet (.CSV Excel)</button>
+            </div>
+
+            <div class="filter-panel">
+                <div class="filter-group">
+                    <label>Worker Target Filter</label>
+                    <select id="filter-cust" class="select-field" onchange="renderConsumptionReport()"></select>
+                </div>
+                <div class="filter-group">
+                    <label>Menu Label Selector Component</label>
+                    <select id="filter-item" class="select-field" onchange="renderConsumptionReport()"></select>
+                </div>
+                <div class="filter-group">
+                    <label>Chronological Filter Boundary</label>
+                    <select id="filter-date" class="select-field" onchange="renderConsumptionReport()"></select>
+                </div>
+                <button class="btn btn-danger btn-reset-gray" onclick="clearConsumptionFilters()">Reset Parameters</button>
+            </div>
+
+            <div class="excel-table-container">
+                <table class="excel-table">
+                    <thead>
+                        <tr>
+                            <th class="w-280">Chronological Shift Timestamp Node</th>
+                            <th>Worker Profile Reference</th>
+                            <th>Menu Item Label Reference Name</th>
+                            <th class="w-120 text-right">Net Quantity Vector</th>
+                            <th class="w-150 text-right">Retroactive Real-Time Weight (KG)</th>
+                            <th class="w-120">Flow Flag State</th>
+                        </tr>
+                    </thead>
+                    <tbody id="consumption-report-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="tab-content" id="audit-tab">
+    <div class="archive-dashboard">
+        <div class="main-panel">
+            <div class="panel-header-row">
+                <div class="section-title margin-0">Security Audit Log Access Ledger</div>
+                <button class="btn btn-danger font-size-13" onclick="clearAuditLog()">Purge All Audit Records</button>
+            </div>
+            
+            <div class="filter-panel" style="margin-bottom: 12px;">
+                <div class="filter-group">
+                    <label>Filter Event Type</label>
+                    <select id="audit-filter-type" class="select-field" onchange="renderAuditLog()">
+                        <option value="ALL">-- All Event Types --</option>
+                        <option value="SHIFT_CONTROL">Shift Control Actions</option>
+                        <option value="PASSWORD_ATTEMPT">Password Attempts</option>
+                        <option value="SETTINGS_CHANGED">Settings & Data Changes</option>
+                        <option value="CUSTOMER_MODIFIED">Worker Profile Changes</option>
+                        <option value="DATA_RESTORED">Data Restoration Events</option>
+                        <option value="HISTORY_CLEARED">History Clear Events</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="excel-table-container">
+                <table class="excel-table">
+                    <thead>
+                        <tr>
+                            <th class="w-200">Timestamp Node</th>
+                            <th class="w-150">Event Category Type</th>
+                            <th>Event Description Details</th>
+                            <th class="w-100">Execution Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-log-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="script.js"></script>
-
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then((registration) => {
-          console.log('Offline System Activated. Scope: ', registration.scope);
-        })
-        .catch((error) => {
-          console.log('Offline System Failed to Register: ', error);
-        });
-    });
-  }
-</script>
-
 </body>
 </html>
