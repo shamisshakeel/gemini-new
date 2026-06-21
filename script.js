@@ -56,8 +56,8 @@ function getCalculatedShiftDate() {
     let hours = now.getHours();
     let shiftStart = new Date(now);
     
-    // Any transaction before 10 AM gets grouped into yesterday's shift record
-    if (hours < 10) {
+    // Any transaction before 3 AM gets grouped into yesterday's shift record
+    if (hours < 3) {
         shiftStart.setDate(shiftStart.getDate() - 1);
     }
     return getFormattedSystemDate(shiftStart);
@@ -101,7 +101,7 @@ function processAutomatedShiftRollover() {
     }
 }
 
-// Checks the clock every 1 minute to trigger the rollover exactly at 10 AM
+// Checks the clock every 1 minute to trigger the rollover exactly at 3 AM
 setInterval(processAutomatedShiftRollover, 60000);
 
 // Exact Timestamps for every log action
@@ -204,6 +204,7 @@ function openPinModal(title, type, successCallback) {
     document.getElementById('modal-pin-input').focus();
 }
 
+// Global Audit logger system
 function logAuditEvent(type, description) {
     let timestamp = getExactTimestamp();
     auditLogs.push({ time: timestamp, type: type, description: description, status: "SUCCESS" });
@@ -251,6 +252,7 @@ function clearAuditLog() {
     });
 }
 
+// UI Modals handler scripts
 function closePinModal() {
     document.getElementById('secure-pin-modal').style.display = 'none';
     activeCallback = null;
